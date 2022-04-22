@@ -1,0 +1,13 @@
+name = "WellKnownGeometry"
+uuid = "0f680547-7be7-4555-8820-bb198eeb646b"
+authors = ["Maarten Pronk <git@evetion.nl>", "Julia Computing and contributors."]
+version = "0.1.0"
+
+[compat]
+julia = "1.6"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
