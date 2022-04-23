@@ -1,5 +1,9 @@
 module WellKnownGeometry
 
-# Write your package code here.
+import GeoInterface as GI
 
+include("wkb.jl")
+include("wkt.jl")
+
+export getwkb, getwkt
 end

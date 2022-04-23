@@ -3,11 +3,18 @@ uuid = "0f680547-7be7-4555-8820-bb198eeb646b"
 authors = ["Maarten Pronk <git@evetion.nl>", "Julia Computing and contributors."]
 version = "0.1.0"
 
+[deps]
+ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+GeoFormatTypes = "68eda718-8dee-11e9-39e7-89f7f65f511f"
+GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
+
 [compat]
 julia = "1.6"
 
 [extras]
+ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["Test", "ArchGDAL"]
