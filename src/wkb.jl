@@ -30,7 +30,7 @@ Push WKB to `data` for a Pointlike `type` of `geom``.
 `first` indicates whether we need to indicate the type in case this outer geometry or part of a geometrycollection.
 """
 function getwkb!(data, type::T, geom, first) where {T<:GI.AbstractPointTrait}
-    first && push!(data, 0x01)  # endianess
+    first && push!(data, 0x01)  # endianness
     first && push!(data, reinterpret(UInt8, [UInt32(geowkb[typeof(type)])])...)
     for i in 1:GI.ncoord(geom)
         push!(data, reinterpret(UInt8, [GI.getcoord(geom, i)])...)
@@ -38,14 +38,14 @@ function getwkb!(data, type::T, geom, first) where {T<:GI.AbstractPointTrait}
 end
 
 """
-Push WKT to `data` for non Pointlike `type` of `geom`.
+Push WKB to `data` for non Pointlike `type` of `geom`.
 
 `first` indicates whether we need to indicate the type in case this outer geometry.
 `repeat` indicates whether sub geometries need to indicate their type, in case `geom` is
 a geometrycollection.
 """
 function _getwkb!(data, type, geom, first, repeat)
-    first && push!(data, 0x01)  # endianess
+    first && push!(data, 0x01)  # endianness
     first && push!(data, reinterpret(UInt8, [UInt32(geowkb[typeof(type)])])...)
     n = GI.ngeom(geom)
     push!(data, reinterpret(UInt8, [UInt32(n)])...)
