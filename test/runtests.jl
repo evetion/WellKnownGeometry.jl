@@ -23,6 +23,7 @@ import ArchGDAL
             # Well known binary
             wkb = WKG.getwkb(geom)
             wkbc = ArchGDAL.toWKB(geom)
+            @test length(wkb) == length(wkbc)
             @test all(wkb .== wkbc)
 
             # Well known text
@@ -46,6 +47,7 @@ import ArchGDAL
             end
             wkb = WKG.getwkb(collection)
             wkbc = ArchGDAL.toWKB(collection)
+            @test length(wkb) == length(wkbc)
             @test all(wkb .== wkbc)
 
             wkt = WKG.getwkt(collection)

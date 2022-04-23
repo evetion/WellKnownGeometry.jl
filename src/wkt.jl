@@ -1,4 +1,25 @@
+"""
+Well Known Text (WKT) represents `geometry` as nested text by:
+- Displaying the geometry type if not known beforehand (e.g `POINT `)
+- Brackets open (e.g. `(`)
+- Any coordinates if the geometry type is a Point, seperated by a space (e.g `1.0 2.0`)
+- Or another (sub)geometry in non-Point geometry types
+- Brackets close (e.g `)`)
 
+Knowing the type of subgeometries (and thus the SF type hierarchy) is required.
+For example, because a Polygon always has rings (either exterior or interior ones),
+the (sub)geometry type of those rings are skipped (LinearRing) and only brackets are added.
+The opposite is true for a GeometryCollection, when the subgeometry types are not known beforehand.
+
+A few examples
+
+POINT (30 10)
+LINESTRING (30 10, 30 10)
+POLYGON (((35 10, 45 45, 15 40, 10 20, 35 10),
+(20 30, 35 35, 30 20, 20 30)))
+"""
+
+# Map GeoInterface type traits directly to their WKT String representation
 GeometryString = Dict(
     GI.PointTrait => "POINT ",
     GI.LineStringTrait => "LINESTRING ",
@@ -33,11 +54,10 @@ function getwkt!(data, type::T, geom, first) where {T<:GI.AbstractPointTrait}
     else
         n = GI.ncoord(geom)
         first && push!(data, '(')
-        for i in 1:n-1
+        for i in 1:n
             push!(data, collect(string(GI.getcoord(geom, i)))...)
-            push!(data, ' ')
+            i != n && push!(data, ' ')  # Don't add a ` ` on the last item
         end
-        push!(data, collect(string(GI.getcoord(geom, n)))...)
         first && push!(data, ')')
     end
 end
@@ -56,15 +76,12 @@ function _getwkt!(data, type, geom, first, repeat)
     else
         n = GI.ngeom(geom)
         push!(data, '(')
-        for i in 1:n-1
+        for i in 1:n
             sgeom = GI.getgeom(geom, i)
             type = GI.geomtype(sgeom)
             getwkt!(data, type, sgeom, repeat)
-            push!(data, ',')
+            i != n && push!(data, ',')  # Don't add a , on the last item
         end
-        sgeom = GI.getgeom(geom, n)
-        type = GI.geomtype(sgeom)
-        getwkt!(data, type, sgeom, repeat)
         push!(data, ')')
     end
 end

@@ -1,4 +1,18 @@
+"""
+Well Known Binary (WKB) represents `geometry` as:
+- `UInt8` an endianess header
+- `UInt32` a geometry type (if not known beforehand)
+- `UInt32` the number of subgeometries (if any depending on the type)
+- `Vector[geometry]` the subgeometries (if any depending on the type) or
+- `Vector[Float64]` the coordinates of the underlying points
 
+Knowing the type of subgeometries (and thus the SF type hierarchy) is required.
+For example, because a Polygon always has rings (either exterior or interior ones),
+the (sub)geometry type of those rings are skipped (LinearRing). The opposite
+is true for a GeometryCollection, when the subgeometry types are not known beforehand.
+"""
+
+# Map GeoInterface type traits directly to their WKB UInt32 interpretation
 @enum GeometryType::UInt32 begin
     PointTrait = 1
     LineStringTrait = 2
@@ -10,7 +24,6 @@
 end
 inst = instances(GeometryType)
 syms = getfield.(Ref(GI), Symbol.(inst))
-wkbgeo = Dict(zip(inst, syms))
 geowkb = Dict(zip(syms, inst))
 
 """
