@@ -14,8 +14,9 @@ GeometryTraits = Union{
     GI.GeometryCollectionTrait,
 }
 
+export getwkb, getwkt
+
 include("wkb.jl")
 include("wkt.jl")
 
-export getwkb, getwkt
 end

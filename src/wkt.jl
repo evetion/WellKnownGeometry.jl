@@ -20,15 +20,13 @@ POLYGON (((35 10, 45 45, 15 40, 10 20, 35 10),
 """
 
 # Map GeoInterface type traits directly to their WKT String representation
-GeometryString = Dict(
-    GI.PointTrait => "POINT ",
-    GI.LineStringTrait => "LINESTRING ",
-    GI.PolygonTrait => "POLYGON ",
-    GI.MultiPointTrait => "MULTIPOINT ",
-    GI.MultiLineStringTrait => "MULTILINESTRING ",
-    GI.MultiPolygonTrait => "MULTIPOLYGON ",
-    GI.GeometryCollectionTrait => "GEOMETRYCOLLECTION "
-)
+geometry_string(::GI.AbstractPointTrait) = "POINT "
+geometry_string(::GI.AbstractLineStringTrait) = "LINESTRING "
+geometry_string(::GI.AbstractPolygonTrait) = "POLYGON "
+geometry_string(::GI.AbstractMultiPointTrait) = "MULTIPOINT "
+geometry_string(::GI.AbstractMultiLineStringTrait) = "MULTILINESTRING "
+geometry_string(::GI.AbstractMultiPolygonTrait) = "MULTIPOLYGON "
+geometry_string(::GI.AbstractGeometryCollectionTrait) = "GEOMETRYCOLLECTION "
 
 """
     getwkt(geom)
@@ -42,13 +40,13 @@ function getwkt(geom)
 end
 
 """
-Push WKT to `data` for a Pointlike `type` of `geom``.
+Push WKT to `data` for a Pointlike `type` of `geom`.
 
 `first` indicates whether we need to print the type with brackets--like POINT ( )--
 in case this outer geometry or part of a geometrycollection.
 """
-function getwkt!(data, type::T, geom, first) where {T<:GI.AbstractPointTrait}
-    first && append!(data, collect(GeometryString[typeof(type)]))
+function getwkt!(data, type::GI.AbstractPointTrait, geom, first::Bool)
+    first && append!(data, collect(geometry_string(type))...)
     if GI.isempty(geom)
         append!(data, collect("EMPTY"))
     else
@@ -69,8 +67,8 @@ Push WKT to `data` for non Pointlike `type` of `geom`.
 in case this outer geometry. `repeat` indicates whether sub geometries need to print their type, in case `geom` is
 a geometrycollection.
 """
-function _getwkt!(data, type, geom, first, repeat)
-    first && append!(data, collect(GeometryString[typeof(type)]))
+function _getwkt!(data, type, geom, first::Bool, repeat::Bool)
+    first && append!(data, collect(geometry_string(type))...)
     if GI.isempty(geom)
         append!(data, collect("EMPTY"))
     else
@@ -86,10 +84,10 @@ function _getwkt!(data, type, geom, first, repeat)
     end
 end
 
-function getwkt!(data, type::T, geom, first) where {T<:GI.AbstractGeometryTrait}
+function getwkt!(data, type::GI.AbstractGeometryTrait, geom, first::Bool)
     _getwkt!(data, type, geom, first, false)
 end
 
-function getwkt!(data, type::T, geom, first) where {T<:GI.GeometryCollectionTrait}
+function getwkt!(data, type::GI.GeometryCollectionTrait, geom, first::Bool)
     _getwkt!(data, type, geom, first, true)
 end
