@@ -1,4 +1,6 @@
 import WellKnownGeometry as WKG
+import GeoFormatTypes as GFT
+import GeoInterface as GI
 using Test
 import ArchGDAL
 
@@ -20,20 +22,22 @@ import ArchGDAL
         ("Empty Multi", ArchGDAL.createmultipolygon())
     )
         @testset "$type" begin
-            # Well known binary
-            wkb = WKG.getwkb(geom)
-            wkbc = ArchGDAL.toWKB(geom)
-            @test length(wkb) == length(wkbc)
-            @test all(wkb .== wkbc)
-
-            # Well known text
-            wkt = WKG.getwkt(geom)
-            wktc = ArchGDAL.toWKT(geom)
-            @test wkt == wktc
-
-            # Test validity by reading it again
-            ArchGDAL.fromWKB(wkb)
-            ArchGDAL.fromWKT(wkt)
+            @testset "WKB" begin
+                wkb = WKG.getwkb(geom)
+                wkbc = ArchGDAL.toWKB(geom)
+                @test length(wkb) == length(wkbc)
+                @test all(wkb .== wkbc)
+                ArchGDAL.fromWKB(wkb)
+                gwkb = GFT.WellKnownBinary(GFT.Geom(), wkb)
+                @test all(GI.coordinates(gwkb) .== GI.coordinates(geom))
+            end
+            @testset "WKT" begin
+                wkt = WKG.getwkt(geom)
+                wktc = ArchGDAL.toWKT(geom)
+                @test wkt == wktc
+                # Test validity by reading it again
+                ArchGDAL.fromWKT(wkt)
+            end
         end
     end
 
@@ -45,17 +49,22 @@ import ArchGDAL
             ]
                 ArchGDAL.addgeom!(collection, g)
             end
-            wkb = WKG.getwkb(collection)
-            wkbc = ArchGDAL.toWKB(collection)
-            @test length(wkb) == length(wkbc)
-            @test all(wkb .== wkbc)
 
-            wkt = WKG.getwkt(collection)
-            wktc = ArchGDAL.toWKT(collection)
-            @test wkt == wktc
-
-            collection = ArchGDAL.fromWKB(wkb)
-            collection = ArchGDAL.fromWKT(wkt)
+            @testset "WKB" begin
+                wkb = WKG.getwkb(collection)
+                wkbc = ArchGDAL.toWKB(collection)
+                @test length(wkb) == length(wkbc)
+                @test all(wkb .== wkbc)
+                collection = ArchGDAL.fromWKB(wkb)
+                gwkb = GFT.WellKnownBinary(GFT.Geom(), wkb)
+                @test all(GI.coordinates(gwkb) .== GI.coordinates(collection))
+            end
+            @testset "WKT" begin
+                wkt = WKG.getwkt(collection)
+                wktc = ArchGDAL.toWKT(collection)
+                @test wkt == wktc
+                collection = ArchGDAL.fromWKT(wkt)
+            end
         end
     end
 

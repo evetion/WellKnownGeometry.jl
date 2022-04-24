@@ -48,14 +48,14 @@ Push WKT to `data` for a Pointlike `type` of `geom``.
 in case this outer geometry or part of a geometrycollection.
 """
 function getwkt!(data, type::T, geom, first) where {T<:GI.AbstractPointTrait}
-    first && push!(data, collect(GeometryString[typeof(type)])...)
+    first && append!(data, collect(GeometryString[typeof(type)]))
     if GI.isempty(geom)
-        push!(data, collect("EMPTY")...)
+        append!(data, collect("EMPTY"))
     else
         n = GI.ncoord(geom)
         first && push!(data, '(')
         for i in 1:n
-            push!(data, collect(string(GI.getcoord(geom, i)))...)
+            append!(data, collect(string(GI.getcoord(geom, i))))
             i != n && push!(data, ' ')  # Don't add a ` ` on the last item
         end
         first && push!(data, ')')
@@ -70,9 +70,9 @@ in case this outer geometry. `repeat` indicates whether sub geometries need to p
 a geometrycollection.
 """
 function _getwkt!(data, type, geom, first, repeat)
-    first && push!(data, collect(GeometryString[typeof(type)])...)
+    first && append!(data, collect(GeometryString[typeof(type)]))
     if GI.isempty(geom)
-        push!(data, collect("EMPTY")...)
+        append!(data, collect("EMPTY"))
     else
         n = GI.ngeom(geom)
         push!(data, '(')
