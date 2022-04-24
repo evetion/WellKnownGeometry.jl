@@ -20,13 +20,17 @@ POLYGON (((35 10, 45 45, 15 40, 10 20, 35 10),
 """
 
 # Map GeoInterface type traits directly to their WKT String representation
-geometry_string(::GI.AbstractPointTrait) = "POINT "
-geometry_string(::GI.AbstractLineStringTrait) = "LINESTRING "
-geometry_string(::GI.AbstractPolygonTrait) = "POLYGON "
-geometry_string(::GI.AbstractMultiPointTrait) = "MULTIPOINT "
-geometry_string(::GI.AbstractMultiLineStringTrait) = "MULTILINESTRING "
-geometry_string(::GI.AbstractMultiPolygonTrait) = "MULTIPOLYGON "
-geometry_string(::GI.AbstractGeometryCollectionTrait) = "GEOMETRYCOLLECTION "
+geowkt = Dict(
+    GI.PointTrait => "POINT ",
+    GI.LineStringTrait => "LINESTRING ",
+    GI.PolygonTrait => "POLYGON ",
+    GI.MultiPointTrait => "MULTIPOINT ",
+    GI.MultiLineStringTrait => "MULTILINESTRING ",
+    GI.MultiPolygonTrait => "MULTIPOLYGON ",
+    GI.GeometryCollectionTrait => "GEOMETRYCOLLECTION "
+)
+wktgeo = Dict(zip(values(geowkt), keys(geowkt)))
+geometry_string(T) = geowkt[typeof(T)]
 
 """
     getwkt(geom)
@@ -45,8 +49,8 @@ Push WKT to `data` for a Pointlike `type` of `geom`.
 `first` indicates whether we need to print the type with brackets--like POINT ( )--
 in case this outer geometry or part of a geometrycollection.
 """
-function getwkt!(data, type::GI.AbstractPointTrait, geom, first::Bool)
-    first && append!(data, collect(geometry_string(type))...)
+function getwkt!(data::Vector{Char}, type::GI.AbstractPointTrait, geom, first::Bool)
+    first && append!(data, collect(geometry_string(type)))
     if GI.isempty(geom)
         append!(data, collect("EMPTY"))
     else
@@ -67,8 +71,8 @@ Push WKT to `data` for non Pointlike `type` of `geom`.
 in case this outer geometry. `repeat` indicates whether sub geometries need to print their type, in case `geom` is
 a geometrycollection.
 """
-function _getwkt!(data, type, geom, first::Bool, repeat::Bool)
-    first && append!(data, collect(geometry_string(type))...)
+function _getwkt!(data::Vector{Char}, type, geom, first::Bool, repeat::Bool)
+    first && append!(data, collect(geometry_string(type)))
     if GI.isempty(geom)
         append!(data, collect("EMPTY"))
     else
@@ -84,10 +88,133 @@ function _getwkt!(data, type, geom, first::Bool, repeat::Bool)
     end
 end
 
-function getwkt!(data, type::GI.AbstractGeometryTrait, geom, first::Bool)
+function getwkt!(data::Vector{Char}, type::GI.AbstractGeometryTrait, geom, first::Bool)
     _getwkt!(data, type, geom, first, false)
 end
 
-function getwkt!(data, type::GI.GeometryCollectionTrait, geom, first::Bool)
+function getwkt!(data::Vector{Char}, type::GI.GeometryCollectionTrait, geom, first::Bool)
     _getwkt!(data, type, geom, first, true)
+end
+
+# Implement GeoInterface for WKT, as wrapped by GeoFormatTypes
+WKTtype = GFT.WellKnownText{GFT.Geom}
+GI.isgeometry(::WKTtype) = true
+
+const gftgeom = GFT.Geom()
+Base.getindex(wkt::WKTtype, i) = GFT.WellKnownText(gftgeom, wkt.val[i])
+Base.lastindex(wkt::WKTtype) = lastindex(wkt.val)
+
+
+function GI.geomtype(geom::WKTtype)
+    i = findfirst(' ', geom.val)
+    type = get(wktgeo, geom.val[1:i], nothing)
+    if isnothing(type)
+        @warn "unknown geometry type" geom.val
+        return nothing
+    else
+        return type()
+    end
+end
+
+function GI.ncoord(::GeometryTraits, geom::WKTtype)
+    if occursin("EMPTY", geom.val)
+        return 0
+    else
+        return 2
+    end
+end
+
+
+function GI.getcoord(::GI.PointTrait, geom::WKTtype, i)
+    start = findfirst('(', geom.val)
+    isnothing(start) && (start = 0)
+    s = geom.val[start+1:end-1]
+    index = [1, findall(' ', s)..., length(s)]
+    f = parse(Float64, s[index[i]:index[i+1]])
+    return f
+end
+
+GI.ngeom(::Point, geom) = 0
+GI.ngeom(::GI.PointTrait, geom) = 0
+function GI.ngeom(::GI.AbstractGeometryTrait, geom)
+    s = geom.val
+    occursin("EMPTY", s) && return 0
+    ngeo = 1  # always one geometry
+    nbracket = 0
+    for i in 1:length(s)
+        if s[i] === '('
+            nbracket += 1
+        elseif s[i] === ')'
+            nbracket -= 1
+        elseif s[i] === ',' && nbracket == 1
+            ngeo += 1
+        end
+    end
+    return ngeo
+end
+
+function GI.getgeom(
+    T::GI.GeometryCollectionTrait,
+    geom::WKTtype,
+    i::Integer,
+)
+    s = geom.val
+    f, l = 1, length(s) - 1
+    ngeo = 1
+    nbracket = 0
+    for index in 1:length(s)
+        if s[index] === '('
+            nbracket += 1
+            nbracket == 1 && ngeo == i && (f = index + 1)
+        elseif s[index] === ')'
+            nbracket -= 1
+        elseif s[index] === ',' && nbracket == 1
+            # End of current geometry
+            ngeo == i && (l = index - 1; break)
+            ngeo += 1
+            # Or start of wanted geometry
+            f = index + 1
+        end
+    end
+    return WKTtype(gftgeom, s[f:l])
+end
+
+wktsubtype(::GI.PointTrait) = nothing
+wktsubtype(::GI.LineStringTrait) = GI.PointTrait()
+wktsubtype(::GI.PolygonTrait) = GI.LineStringTrait()
+wktsubtype(::GI.MultiPointTrait) = GI.PointTrait()
+wktsubtype(::GI.MultiLineStringTrait) = GI.LineStringTrait()
+wktsubtype(::GI.MultiPolygonTrait) = GI.PolygonTrait()
+
+
+function GI.getgeom(
+    T::GI.AbstractGeometryTrait,
+    geom::WKTtype,
+    i::Integer,
+)
+    sub = wktsubtype(T)
+    s = geom.val
+    f, l = 1, length(s) - 1
+    ngeo = 1
+    nbracket = 0
+    for index in 1:length(s)
+        if s[index] === '('
+            nbracket += 1
+            nbracket == 1 && ngeo == i && (f = index + 1)
+        elseif s[index] === ')'
+            nbracket -= 1
+        elseif s[index] === ',' && nbracket == 1
+            # End of current geometry
+            ngeo == i && (l = index - 1; break)
+            ngeo += 1
+            # Or start of wanted geometry
+            f = index + 1
+        end
+    end
+    if isnothing(findfirst("(", @view s[f:l]))
+        data = geometry_string(sub) * "(" * s[f:l] * ")"
+    else
+        data = geometry_string(sub) * s[f:l]
+    end
+    return WKTtype(gftgeom, data)
 end

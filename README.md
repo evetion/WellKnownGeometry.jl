@@ -15,5 +15,9 @@ tests, this additionally needs
 [ArchGDAL.jl#290](https://github.com/yeesian/ArchGDAL.jl/pull/290), which implements the new
 interface. Both branches can be added with:
 
-    add GeoInterface#v1-traits
-    add ArchGDAL#feat/geointerface-traits
+```julia
+]add GeoInterface#v1-traits
+]add ArchGDAL#feat/geointerface-traits
+```
+
+We thank Julia Computing for supporting contributions to this package.

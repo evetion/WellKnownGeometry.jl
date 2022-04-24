@@ -1,5 +1,5 @@
 import WellKnownGeometry as WKG
-import GeoFormatTypes as GFT
+@time import GeoFormatTypes as GFT
 import GeoInterface as GI
 using Test
 import ArchGDAL
@@ -37,6 +37,8 @@ import ArchGDAL
                 @test wkt == wktc
                 # Test validity by reading it again
                 ArchGDAL.fromWKT(wkt)
+                gwkb = GFT.WellKnownText(GFT.Geom(), wkt)
+                @test all(GI.coordinates(gwkb) .== GI.coordinates(geom))
             end
         end
     end
@@ -64,6 +66,9 @@ import ArchGDAL
                 wktc = ArchGDAL.toWKT(collection)
                 @test wkt == wktc
                 collection = ArchGDAL.fromWKT(wkt)
+                gwkb = GFT.WellKnownText(GFT.Geom(), wkt)
+                @test all(GI.coordinates(gwkb) .== GI.coordinates(collection))
+
             end
         end
     end
