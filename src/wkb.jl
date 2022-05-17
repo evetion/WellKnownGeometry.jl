@@ -33,7 +33,7 @@ Retrieve the Well Known Binary (WKB) as `Vector{UInt8}` for a `geom` that implem
 """
 function getwkb(geom)
     data = UInt8[]
-    getwkb!(data, GI.geomtype(geom), geom, true)
+    getwkb!(data, GI.geomtrait(geom), geom, true)
     return data
 end
 
@@ -66,7 +66,7 @@ function _getwkb!(data::Vector{UInt8}, type, geom, first::Bool, repeat::Bool)
     append!(data, reinterpret(UInt8, [UInt32(n)]))
     for i in 1:n
         sgeom = GI.getgeom(geom, i)
-        type = GI.geomtype(sgeom)
+        type = GI.geomtrait(sgeom)
         getwkb!(data, type, sgeom, repeat)
     end
 end
@@ -93,7 +93,7 @@ end
 
 GI.isgeometry(::WKBtype) = true
 
-function GI.geomtype(geom::WKBtype)
+function GI.geomtrait(geom::WKBtype)
     check_endianness(geom.val)
     wkbtype = reinterpret(UInt32, geom.val[2:5])[1]
     type = get(wkbgeo, wkbtype, nothing)
@@ -131,7 +131,7 @@ function GI.getgeom(
     size = headersize + numsize
     offset = 0  # size of geom at i
     for _ in 1:i
-        offset = typesize(GI.geomtype(geom[size+1:end]), geom[size+1:end], GI.ncoord(geom))
+        offset = typesize(GI.geomtrait(geom[size+1:end]), geom[size+1:end], GI.ncoord(geom))
         size += offset
     end
     return geom[size-offset+1:size]
@@ -208,7 +208,7 @@ end
 function typesize(T::GI.GeometryCollectionTrait, geom, n::Integer)
     size = headersize + numsize
     for _ in 1:GI.ngeom(T, geom)
-        size += typesize(GI.geomtype(geom[size+1:end]), geom[size+1:end], n)
+        size += typesize(GI.geomtrait(geom[size+1:end]), geom[size+1:end], n)
     end
     return size
 end

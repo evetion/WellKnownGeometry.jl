@@ -39,7 +39,7 @@ Retrieve the Well Known Text (WKT) as `String` for a `geom` that implements the 
 """
 function getwkt(geom)
     data = Char[]
-    getwkt!(data, GI.geomtype(geom), geom, true)
+    getwkt!(data, GI.geomtrait(geom), geom, true)
     return String(data)
 end
 
@@ -80,7 +80,7 @@ function _getwkt!(data::Vector{Char}, type, geom, first::Bool, repeat::Bool)
         push!(data, '(')
         for i in 1:n
             sgeom = GI.getgeom(geom, i)
-            type = GI.geomtype(sgeom)
+            type = GI.geomtrait(sgeom)
             getwkt!(data, type, sgeom, repeat)
             i != n && push!(data, ',')  # Don't add a , on the last item
         end
@@ -105,7 +105,7 @@ Base.getindex(wkt::WKTtype, i) = GFT.WellKnownText(gftgeom, wkt.val[i])
 Base.lastindex(wkt::WKTtype) = lastindex(wkt.val)
 
 
-function GI.geomtype(geom::WKTtype)
+function GI.geomtrait(geom::WKTtype)
     i = findfirst(' ', geom.val)
     type = get(wktgeo, geom.val[1:i], nothing)
     if isnothing(type)
