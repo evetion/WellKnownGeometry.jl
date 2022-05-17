@@ -1,6 +1,4 @@
 [deps]
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
 WellKnownGeometry = "0f680547-7be7-4555-8820-bb198eeb646b"
-GeoFormatTypes = "68eda718-8dee-11e9-39e7-89f7f65f511f"
-GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

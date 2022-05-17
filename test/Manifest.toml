@@ -16,10 +16,12 @@ uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 version = "3.3.3"
 
 [[deps.ArchGDAL]]
-deps = ["CEnum", "ColorTypes", "Dates", "DiskArrays", "GDAL", "GeoFormatTypes", "GeoInterface", "ImageCore", "Tables"]
-git-tree-sha1 = "a07ce5004c7265b809fb580e02a1821bb031f611"
+deps = ["CEnum", "ColorTypes", "Dates", "DiskArrays", "Extents", "GDAL", "GeoFormatTypes", "GeoInterface", "ImageCore", "Tables"]
+git-tree-sha1 = "cfab0897c99a50cd2836e4917c0244cfe346e554"
+repo-rev = "feat/geointerface-traits"
+repo-url = "https://github.com/yeesian/ArchGDAL.jl.git"
 uuid = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
-version = "0.8.5"
+version = "0.8.4"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -119,6 +121,11 @@ git-tree-sha1 = "bad72f730e9e91c08d9427d5e8db95478a3c323d"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.4.8+0"
 
+[[deps.Extents]]
+git-tree-sha1 = "a087a23129ac079d43ba6b534c6350325fcd41c9"
+uuid = "411431e0-e8b7-467b-b5e0-f676ba4f2910"
+version = "0.1.0"
+
 [[deps.FixedPointNumbers]]
 deps = ["Statistics"]
 git-tree-sha1 = "335bfdceacc84c5cdf16aadc768aa5ddfc5383cc"
@@ -149,10 +156,10 @@ uuid = "68eda718-8dee-11e9-39e7-89f7f65f511f"
 version = "0.4.0"
 
 [[deps.GeoInterface]]
-deps = ["RecipesBase"]
-git-tree-sha1 = "6b1a29c757f56e0ae01a35918a2c39260e2c4b98"
+deps = ["Extents"]
+git-tree-sha1 = "de6980e052d67c0da1872dfdb2c49fb7d3f56b07"
 uuid = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
-version = "0.5.7"
+version = "1.0.0"
 
 [[deps.Graphics]]
 deps = ["Colors", "LinearAlgebra", "NaNMath"]
@@ -346,11 +353,6 @@ uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 deps = ["SHA", "Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
-[[deps.RecipesBase]]
-git-tree-sha1 = "6bf3f380ff52ce0832ddd3a2a7b9538ed1bcca7d"
-uuid = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
-version = "1.2.1"
-
 [[deps.Reexport]]
 git-tree-sha1 = "45e428421666073eab6f2da5c9d310d99bb12f9b"
 uuid = "189a3867-3050-52da-a836-e630ba90ab69"
@@ -433,10 +435,8 @@ uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[deps.WellKnownGeometry]]
-deps = ["ArchGDAL", "GeoFormatTypes", "GeoInterface"]
-git-tree-sha1 = "cbc87a8716b3905134c7574ab77f45770e405ff8"
-repo-rev = "main"
-repo-url = ".."
+deps = ["GeoFormatTypes", "GeoInterface"]
+path = ".."
 uuid = "0f680547-7be7-4555-8820-bb198eeb646b"
 version = "0.1.0"
 
