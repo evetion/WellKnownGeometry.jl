@@ -1,4 +1,0 @@
-[deps]
-ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
-WellKnownGeometry = "0f680547-7be7-4555-8820-bb198eeb646b"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
