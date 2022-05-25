@@ -20,7 +20,7 @@ POLYGON (((35 10, 45 45, 15 40, 10 20, 35 10),
 """
 
 # Map GeoInterface type traits directly to their WKT String representation
-geowkt = Dict(
+const geowkt = Dict{DataType, String}(
     GI.PointTrait => "POINT ",
     GI.LineStringTrait => "LINESTRING ",
     GI.PolygonTrait => "POLYGON ",
@@ -29,7 +29,7 @@ geowkt = Dict(
     GI.MultiPolygonTrait => "MULTIPOLYGON ",
     GI.GeometryCollectionTrait => "GEOMETRYCOLLECTION "
 )
-wktgeo = Dict(zip(values(geowkt), keys(geowkt)))
+const wktgeo = Dict{String, DataType}(zip(values(geowkt), keys(geowkt)))
 geometry_string(T) = geowkt[typeof(T)]
 
 """
@@ -97,10 +97,9 @@ function getwkt!(data::Vector{Char}, type::GI.GeometryCollectionTrait, geom, fir
 end
 
 # Implement GeoInterface for WKT, as wrapped by GeoFormatTypes
-WKTtype = GFT.WellKnownText{GFT.Geom}
+const WKTtype = GFT.WellKnownText{GFT.Geom}
 GI.isgeometry(::WKTtype) = true
 
-const gftgeom = GFT.Geom()
 Base.getindex(wkt::WKTtype, i) = GFT.WellKnownText(gftgeom, wkt.val[i])
 Base.lastindex(wkt::WKTtype) = lastindex(wkt.val)
 

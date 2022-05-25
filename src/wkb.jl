@@ -14,7 +14,7 @@ is true for a GeometryCollection, when the subgeometry types are not known befor
 
 # Map GeoInterface type traits directly to their WKB UInt32 interpretation
 
-geowkb = Dict(
+const geowkb = Dict{DataType, UInt32}(
     GI.PointTrait => UInt32(1),
     GI.LineStringTrait => UInt32(2),
     GI.PolygonTrait => UInt32(3),
@@ -23,7 +23,7 @@ geowkb = Dict(
     GI.MultiPolygonTrait => UInt32(6),
     GI.GeometryCollectionTrait => UInt32(7),
 )
-wkbgeo = Dict(zip(values(geowkb), keys(geowkb)))
+const wkbgeo = Dict{UInt32, DataType}(zip(values(geowkb), keys(geowkb)))
 geometry_code(T) = geowkb[typeof(T)]
 
 """
@@ -82,7 +82,7 @@ end
 getwkb!(data, ::Nothing, geom, first::Bool) = nothing  # empty geometry has unknown type
 
 # Implement GeoInterface for WKB, as wrapped by GeoFormatTypes
-WKBtype = GFT.WellKnownBinary{GFT.Geom,Vector{UInt8}}
+const WKBtype = GFT.WellKnownBinary{GFT.Geom,Vector{UInt8}}
 struct Point end
 struct Ring end
 
@@ -171,7 +171,6 @@ end
 
 # pointsize = GI.ncoord(geom) * sizeof(Float64)
 # wkbpointsize = 1
-const gftgeom = GFT.Geom()
 Base.getindex(wkb::GFT.WellKnownBinary{GFT.Geom,T}, i) where {T} = GFT.WellKnownBinary(gftgeom, wkb.val[i])
 Base.lastindex(wkb::GFT.WellKnownBinary{GFT.Geom,T}) where {T} = lastindex(wkb.val)
 
@@ -183,8 +182,8 @@ wkbsubtype(::GI.MultiPointTrait) = GI.PointTrait()
 wkbsubtype(::GI.MultiLineStringTrait) = GI.LineStringTrait()
 wkbsubtype(::GI.MultiPolygonTrait) = GI.PolygonTrait()
 
-headersize = 1 + 4
-numsize = 4
+const headersize = 1 + 4
+const numsize = 4
 typesize(::Point, geom, n=2) = sizeof(Float64) * n
 typesize(T::Ring, geom, n::Integer) = numsize + GI.ngeom(T, geom) * typesize(wkbsubtype(T), geom, n)
 typesize(T::GI.PointTrait, geom) = headersize + typesize(wkbsubtype(T), geom, GI.ncoord(geom))
