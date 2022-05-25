@@ -3,7 +3,8 @@ module WellKnownGeometry
 import GeoInterface as GI
 import GeoFormatTypes as GFT
 
-GeometryTraits = Union{
+const gftgeom = GFT.Geom()
+const GeometryTraits = Union{
     GI.PointTrait,
     GI.MultiPointTrait,
     GI.LineStringTrait,
