@@ -15,6 +15,7 @@ const GeometryTraits = Union{
     GI.GeometryCollectionTrait,
 }
 
+include("compat.jl")
 include("wkb.jl")
 include("wkt.jl")
 
