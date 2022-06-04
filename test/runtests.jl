@@ -75,4 +75,12 @@ import ArchGDAL
         end
     end
 
+    @testset "GeoInterface" begin
+        wkt = GFT.WellKnownText(GFT.Geom(), "wkt")
+        wkb = GFT.WellKnownBinary(GFT.Geom(), [0x0])
+
+        @test GI.isgeometry(wkt)
+        @test GI.isgeometry(wkb)
+
+    end
 end

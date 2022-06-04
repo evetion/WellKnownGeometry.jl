@@ -11,7 +11,7 @@
     If `overlap=true`, the matching sequences are allowed to overlap indices in the
     original string, otherwise they must be from distinct character ranges.
     """
-    function findall(t::Union{AbstractString,Regex}, s::AbstractString; overlap::Bool=false)
+    function Base.findall(t::Union{AbstractString,Regex}, s::AbstractString; overlap::Bool=false)
         found = UnitRange{Int}[]
         i, e = firstindex(s), lastindex(s)
         while true
