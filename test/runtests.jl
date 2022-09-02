@@ -82,5 +82,12 @@ import ArchGDAL
         @test GI.isgeometry(wkt)
         @test GI.isgeometry(wkb)
 
+        wkt = GFT.WellKnownText(GFT.Geom(), "POINT (30 10)")
+        @test GI.testgeometry(wkt)
+        @test GI.coordinates(wkt) == [30.0, 10.0]
+
+        wkt = GFT.WellKnownText(GFT.Geom(), "LINESTRING (30.0 10.0, 10.0 30.0, 40.0 40.0)")
+        @test GI.testgeometry(wkt)
+        @test GI.coordinates(wkt) == [[30.0,10.0],[10.0,30.0],[40.0,40.0]]
     end
 end
