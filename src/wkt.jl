@@ -128,8 +128,9 @@ function GI.getcoord(::GI.PointTrait, geom::WKTtype, i)
     start = findfirst('(', geom.val)
     isnothing(start) && (start = 0)
     s = geom.val[start+1:end-1]
-    index = [1, findall(' ', s)..., length(s)]
-    f = parse(Float64, s[index[i]:index[i+1]])
+    coords = split(s; keepempty=false)
+    coord = coords[i]
+    f = parse(Float64, coord)
     return f
 end
 
