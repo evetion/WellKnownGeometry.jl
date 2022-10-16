@@ -14,7 +14,7 @@ is true for a GeometryCollection, when the subgeometry types are not known befor
 
 # Map GeoInterface type traits directly to their WKB UInt32 interpretation
 
-const geowkb = Dict{DataType, UInt32}(
+const geowkb = Dict{DataType,UInt32}(
     GI.PointTrait => UInt32(1),
     GI.LineStringTrait => UInt32(2),
     GI.PolygonTrait => UInt32(3),
@@ -23,7 +23,7 @@ const geowkb = Dict{DataType, UInt32}(
     GI.MultiPolygonTrait => UInt32(6),
     GI.GeometryCollectionTrait => UInt32(7),
 )
-const wkbgeo = Dict{UInt32, DataType}(zip(values(geowkb), keys(geowkb)))
+const wkbgeo = Dict{UInt32,DataType}(zip(values(geowkb), keys(geowkb)))
 geometry_code(T) = geowkb[typeof(T)]
 
 """
@@ -34,7 +34,7 @@ Retrieve the Well Known Binary (WKB) as `Vector{UInt8}` for a `geom` that implem
 function getwkb(geom)
     data = UInt8[]
     getwkb!(data, GI.geomtrait(geom), geom, true)
-    return data
+    return GFT.WellKnownBinary(GFT.Geom(), data)
 end
 
 """
