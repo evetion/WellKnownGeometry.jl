@@ -25,21 +25,19 @@ import ArchGDAL
             @testset "WKB" begin
                 wkb = WKG.getwkb(geom)
                 wkbc = ArchGDAL.toWKB(geom)
-                @test length(wkb) == length(wkbc)
-                @test all(wkb .== wkbc)
-                ArchGDAL.fromWKB(wkb)
-                gwkb = GFT.WellKnownBinary(GFT.Geom(), wkb)
-                @test all(GI.coordinates(gwkb) .== GI.coordinates(geom))
+                @test length(GFT.val(wkb)) == length(wkbc)
+                @test all(GFT.val(wkb) .== wkbc)
+                ArchGDAL.fromWKB(GFT.val(wkb))
+                @test all(GI.coordinates(wkb) .== GI.coordinates(geom))
             end
             @testset "WKT" begin
                 wkt = WKG.getwkt(geom)
                 wktc = ArchGDAL.toWKT(geom)
-                @test wkt == wktc
+                @test GFT.val(wkt) == wktc
                 # Test validity by reading it again
-                ArchGDAL.fromWKT(wkt)
-                gwkt = GFT.WellKnownText(GFT.Geom(), wkt)
+                ArchGDAL.fromWKT(GFT.val(wkt))
                 if type !== "Empty"  # broken on ArchGDAL
-                    @test all(GI.coordinates(gwkt) .== GI.coordinates(geom))
+                    @test all(GI.coordinates(wkt) .== GI.coordinates(geom))
                 end
             end
         end
@@ -57,19 +55,17 @@ import ArchGDAL
             @testset "WKB" begin
                 wkb = WKG.getwkb(collection)
                 wkbc = ArchGDAL.toWKB(collection)
-                @test length(wkb) == length(wkbc)
-                @test all(wkb .== wkbc)
-                collection = ArchGDAL.fromWKB(wkb)
-                gwkb = GFT.WellKnownBinary(GFT.Geom(), wkb)
-                @test all(GI.coordinates(gwkb) .== GI.coordinates(collection))
+                @test length(GFT.val(wkb)) == length(wkbc)
+                @test all(GFT.val(wkb) .== wkbc)
+                collection = ArchGDAL.fromWKB(GFT.val(wkb))
+                @test all(GI.coordinates(wkb) .== GI.coordinates(collection))
             end
             @testset "WKT" begin
                 wkt = WKG.getwkt(collection)
                 wktc = ArchGDAL.toWKT(collection)
-                @test wkt == wktc
-                collection = ArchGDAL.fromWKT(wkt)
-                gwkb = GFT.WellKnownText(GFT.Geom(), wkt)
-                @test all(GI.coordinates(gwkb) .== GI.coordinates(collection))
+                @test GFT.val(wkt) == wktc
+                collection = ArchGDAL.fromWKT(GFT.val(wkt))
+                @test all(GI.coordinates(wkt) .== GI.coordinates(collection))
 
             end
         end
@@ -88,6 +84,6 @@ import ArchGDAL
 
         wkt = GFT.WellKnownText(GFT.Geom(), "LINESTRING (30.0 10.0, 10.0 30.0, 40.0 40.0)")
         @test GI.testgeometry(wkt)
-        @test GI.coordinates(wkt) == [[30.0,10.0],[10.0,30.0],[40.0,40.0]]
+        @test GI.coordinates(wkt) == [[30.0, 10.0], [10.0, 30.0], [40.0, 40.0]]
     end
 end

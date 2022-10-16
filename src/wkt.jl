@@ -20,7 +20,7 @@ POLYGON (((35 10, 45 45, 15 40, 10 20, 35 10),
 """
 
 # Map GeoInterface type traits directly to their WKT String representation
-const geowkt = Dict{DataType, String}(
+const geowkt = Dict{DataType,String}(
     GI.PointTrait => "POINT ",
     GI.LineStringTrait => "LINESTRING ",
     GI.PolygonTrait => "POLYGON ",
@@ -29,7 +29,7 @@ const geowkt = Dict{DataType, String}(
     GI.MultiPolygonTrait => "MULTIPOLYGON ",
     GI.GeometryCollectionTrait => "GEOMETRYCOLLECTION "
 )
-const wktgeo = Dict{String, DataType}(zip(values(geowkt), keys(geowkt)))
+const wktgeo = Dict{String,DataType}(zip(values(geowkt), keys(geowkt)))
 geometry_string(T) = geowkt[typeof(T)]
 
 """
@@ -40,7 +40,7 @@ Retrieve the Well Known Text (WKT) as `String` for a `geom` that implements the 
 function getwkt(geom)
     data = Char[]
     getwkt!(data, GI.geomtrait(geom), geom, true)
-    return String(data)
+    return GFT.WellKnownText(GFT.Geom(), String(data))
 end
 
 """
