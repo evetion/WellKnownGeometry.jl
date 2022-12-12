@@ -39,7 +39,7 @@ Retrieve the Well Known Binary (WKB) as `Vector{UInt8}` for a `geom` that implem
 function getwkb(geom)
     data = UInt8[]
     getwkb!(data, GI.geomtrait(geom), geom, true)
-    return data
+    return GFT.WellKnownBinary(GFT.Geom(), data)
 end
 
 """

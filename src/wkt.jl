@@ -49,7 +49,7 @@ Retrieve the Well Known Text (WKT) as `String` for a `geom` that implements the 
 function getwkt(geom)
     data = Char[]
     getwkt!(data, GI.geomtrait(geom), geom, true)
-    return String(data)
+    return GFT.WellKnownText(GFT.Geom(), String(data))
 end
 
 """
@@ -67,7 +67,7 @@ function getwkt!(data::Vector{Char}, type::GI.AbstractPointTrait, geom, first::B
     if GI.isempty(geom)
         append!(data, collect("EMPTY"))
     else
-        n = GI.ncoord(type, geom)
+        n = GI.ncoord(geom)
         first && push!(data, '(')
         for i in 1:n
             append!(data, collect(string(GI.getcoord(geom, i))))
@@ -151,8 +151,9 @@ function GI.getcoord(::GI.PointTrait, geom::WKTtype, i)
     start = findfirst('(', geom.val)
     isnothing(start) && (start = 0)
     s = geom.val[start+1:end-1]
-    index = [1, findall(' ', s)..., length(s)]
-    f = parse(Float64, s[index[i]:index[i+1]])
+    coords = split(s; keepempty=false)
+    coord = coords[i]
+    f = parse(Float64, coord)
     return f
 end
 

@@ -11,30 +11,31 @@ import LibGEOS
     coord3 = [1.1, 2.2, 3.3]
     lcoord = [3.3, 4.4]
     lcoord3 = [3.3, 4.4, 5.5]
-    ring = [[0.1, 0.2], [0.3, 0.4], [0.1, 0.2]]
-    ring3 = [[0.1, 0.2, 0.3], [0.3, 0.4, 0.5], [0.1, 0.2, 0.3]]
-    coords = [[coord, lcoord, coord], ring]
-    coords3 = [[coord3, lcoord3, coord3], ring3]
+    ring = [(0.1, 0.2), (0.3, 0.4), (0.1, 0.2)]
+    ring3 = [(0.1, 0.2, 0.3), (0.3, 0.4, 0.5), (0.1, 0.2, 0.3)]
+    coords = [[Tuple(coord), Tuple(lcoord), Tuple(coord)], ring]
+    coords3 = [[Tuple(coord3), Tuple(lcoord3), Tuple(coord3)], ring3]
 
-    for (type, geom, broken) in (
-        ("Point", ArchGDAL.createpoint(coord), false),
-        ("PointZ", ArchGDAL.createpoint(coord3), true),
-        ("LineString", ArchGDAL.createlinestring([coord, lcoord]), false),
-        ("LineStringZ", ArchGDAL.createlinestring([coord3, lcoord3]), true),
-        ("Polygon", ArchGDAL.createpolygon(coords), false),
-        ("PolygonZ", ArchGDAL.createpolygon(coords3), true),
-        ("MultiPoint", ArchGDAL.createmultipoint([coord, lcoord]), false),
-        ("MultiPointZ", ArchGDAL.createmultipoint([coord3, lcoord3]), true),
-        ("MultiLineString", ArchGDAL.createmultilinestring([[coord, lcoord], [coord, lcoord]]), false),
-        ("MultiLineStringZ", ArchGDAL.createmultilinestring([[coord3, lcoord3], [coord3, lcoord3]]), true),
-        ("MultiPolygon", ArchGDAL.createmultipolygon([coords, coords]), false),
-        ("MultiPolygonZ", ArchGDAL.createmultipolygon([coords3, coords3]), true),
-        ("Empty", ArchGDAL.createpoint(), false),
-        ("Empty Multi", ArchGDAL.createmultipolygon(), false)
+    for (type, geom, broken, threed) in (
+        ("Point", ArchGDAL.createpoint(coord), false, false),
+        ("PointZ", ArchGDAL.createpoint(coord3), true, true),
+        ("LineString", ArchGDAL.createlinestring(coord, lcoord), false, false),
+        ("LineStringZ", ArchGDAL.createlinestring(coord3, lcoord3, lcoord3), true, true),
+        ("Polygon", ArchGDAL.createpolygon(coords), false, false),
+        ("PolygonZ", ArchGDAL.createpolygon(coords3), true, true),
+        ("MultiPoint", ArchGDAL.createmultipoint([coord, lcoord]), false, false),
+        ("MultiPointZ", ArchGDAL.createmultipoint([coord3, lcoord3]), true, true),
+        ("MultiLineString", ArchGDAL.createmultilinestring([[coord, lcoord], [coord, lcoord]]), false, false),
+        ("MultiLineStringZ", ArchGDAL.createmultilinestring([[coord3, lcoord3], [coord3, lcoord3]]), true, true),
+        ("MultiPolygon", ArchGDAL.createmultipolygon([coords, coords]), false, false),
+        ("MultiPolygonZ", ArchGDAL.createmultipolygon([coords3, coords3]), true, true),
+        ("Empty", ArchGDAL.createpoint(), false, false),
+        ("Empty Multi", ArchGDAL.createmultipolygon(), false, false)
     )
+        ArchGDAL.is3d(geom) == threed || (@warn "Creation of $type is broken"; continue)
         @testset "$type" begin
             @testset "WKB" begin
-                wkb = WKG.getwkb(geom)
+                wkb = GFT.val(WKG.getwkb(geom))
                 wkbc = ArchGDAL.toWKB(geom)
                 @test length(wkb) == length(wkbc)
                 @test all(wkb .== wkbc)
@@ -46,12 +47,16 @@ import LibGEOS
                 @test GI.coordinates(gwkb) == GI.coordinates(geom)
             end
             @testset "WKT" begin
-                wkt = WKG.getwkt(geom)
+                gwkt = WKG.getwkt(geom)
+                wkt = GFT.val(gwkt)
                 wktc = ArchGDAL.toWKT(geom)
-                @test wkt == wktc broken = broken
+                if broken
+                    @test_broken wkt == wktc
+                else
+                    @test wkt == wktc
+                end
                 # Test validity by reading it again
                 ArchGDAL.fromWKT(wkt)
-                gwkt = GFT.WellKnownText(GFT.Geom(), wkt)
                 if !occursin("Empty", type)  # broken on ArchGDAL
                     @test GI.ncoord(gwkt) == GI.ncoord(geom)
                     @test GI.coordinates(gwkt) == GI.coordinates(geom)
@@ -72,19 +77,17 @@ import LibGEOS
             @testset "WKB" begin
                 wkb = WKG.getwkb(collection)
                 wkbc = ArchGDAL.toWKB(collection)
-                @test length(wkb) == length(wkbc)
-                @test all(wkb .== wkbc)
-                collection = ArchGDAL.fromWKB(wkb)
-                gwkb = GFT.WellKnownBinary(GFT.Geom(), wkb)
-                @test all(GI.coordinates(gwkb) .== GI.coordinates(collection))
+                @test length(GFT.val(wkb)) == length(wkbc)
+                @test all(GFT.val(wkb) .== wkbc)
+                collection = ArchGDAL.fromWKB(GFT.val(wkb))
+                @test all(GI.coordinates(wkb) .== GI.coordinates(collection))
             end
             @testset "WKT" begin
                 wkt = WKG.getwkt(collection)
                 wktc = ArchGDAL.toWKT(collection)
-                @test wkt == wktc
-                collection = ArchGDAL.fromWKT(wkt)
-                gwkb = GFT.WellKnownText(GFT.Geom(), wkt)
-                @test all(GI.coordinates(gwkb) .== GI.coordinates(collection))
+                @test GFT.val(wkt) == wktc
+                collection = ArchGDAL.fromWKT(GFT.val(wkt))
+                @test all(GI.coordinates(wkt) .== GI.coordinates(collection))
 
             end
         end
@@ -97,12 +100,19 @@ import LibGEOS
         @test GI.isgeometry(wkt)
         @test GI.isgeometry(wkb)
 
+        wkt = GFT.WellKnownText(GFT.Geom(), "POINT (30 10)")
+        @test GI.testgeometry(wkt)
+        @test GI.coordinates(wkt) == [30.0, 10.0]
+
+        wkt = GFT.WellKnownText(GFT.Geom(), "LINESTRING (30.0 10.0, 10.0 30.0, 40.0 40.0)")
+        @test GI.testgeometry(wkt)
+        @test GI.coordinates(wkt) == [[30.0, 10.0], [10.0, 30.0], [40.0, 40.0]]
     end
 
     @testset "LibGEOS" begin
         p = LibGEOS.readgeom("POLYGON Z ((0.5 0.5 0.5,1.5 0.5 0.5,1.5 1.5 0.5,0.5 0.5 0.5))")
         # LibGEOS has a space between points
-        @test replace(WKG.getwkt(p), " " => "") == replace(LibGEOS.writegeom(p), " " => "")
+        @test replace(GFT.val(WKG.getwkt(p)), " " => "") == replace(LibGEOS.writegeom(p), " " => "")
         wkbwriter = LibGEOS.WKBWriter(LibGEOS._context)
         @test WKG.getwkb(p) == LibGEOS.writegeom(p, wkbwriter) broken = true  # LibGEOS doesn't provide 3D type
     end
@@ -158,7 +168,5 @@ import LibGEOS
         @test GI.coordinates(wkt) == [1.0, 1.0, 1.0, 1.0]
 
     end
-
-
 
 end
