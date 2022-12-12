@@ -29,7 +29,8 @@ geometry_code(T) = geowkb[typeof(T)]
 """
     getwkb(geom)
 
-Retrieve the Well Known Binary (WKB) as `Vector{UInt8}` for a `geom` that implements the GeoInterface.
+Retrieve the Well Known Binary (WKB) as `GeoFormatTypes.WellKnownBinary` for a `geom` that implements the GeoInterface.
+Use `GeoFormatTypes.val` to get the Vector{UInt8} representation.
 """
 function getwkb(geom)
     data = UInt8[]
