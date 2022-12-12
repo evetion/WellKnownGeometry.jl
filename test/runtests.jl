@@ -114,7 +114,7 @@ import LibGEOS
         # LibGEOS has a space between points
         @test replace(GFT.val(WKG.getwkt(p)), " " => "") == replace(LibGEOS.writegeom(p), " " => "")
         wkbwriter = LibGEOS.WKBWriter(LibGEOS._context)
-        @test WKG.getwkb(p) == LibGEOS.writegeom(p, wkbwriter) broken = true  # LibGEOS doesn't provide 3D type
+        @test_broken WKG.getwkb(p) == LibGEOS.writegeom(p, wkbwriter)  # LibGEOS doesn't provide 3D type
     end
 
     @testset "ZM" begin
