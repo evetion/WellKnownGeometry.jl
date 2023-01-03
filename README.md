@@ -71,5 +71,3 @@ GeoFormatTypes.val(wkb)  # 21-element Vector{UInt8}:  0x01 0x01 ... 0x00 0x40
 ```@docs
 getwkb
 ```
-
-We thank Julia Computing for supporting contributions to this package.
