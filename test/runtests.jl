@@ -86,4 +86,8 @@ import ArchGDAL
         @test GI.testgeometry(wkt)
         @test GI.coordinates(wkt) == [[30.0, 10.0], [10.0, 30.0], [40.0, 40.0]]
     end
+
+    @testset "Number types" begin
+        @test GFT.val(WKG.getwkb((1.0, 2.0))) == GFT.val(WKG.getwkb((1.0f0, 2.0f0)))
+    end
 end
