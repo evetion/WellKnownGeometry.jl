@@ -49,7 +49,7 @@ function getwkb!(data::Vector{UInt8}, type::GI.PointTrait, geom, first::Bool)
     first && push!(data, 0x01)  # endianness
     first && append!(data, reinterpret(UInt8, [geometry_code(type)]))
     for i in 1:GI.ncoord(geom)
-        append!(data, reinterpret(UInt8, [GI.getcoord(geom, i)]))
+        append!(data, reinterpret(UInt8, Float64[GI.getcoord(geom, i)]))
     end
 end
 
