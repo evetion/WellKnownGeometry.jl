@@ -13,6 +13,20 @@ is true for a GeometryCollection, when the subgeometry types are not known befor
 """
 
 # Map GeoInterface type traits directly to their WKB UInt32 interpretation
+const PointTraitCode = reinterpret(UInt8, [UInt32(1)])
+geometry_code(::GI.PointTrait) = PointTraitCode
+const LineStringTraitCode = reinterpret(UInt8, [UInt32(2)])
+geometry_code(::GI.LineStringTrait) = LineStringTraitCode
+const PolygonTraitCode = reinterpret(UInt8, [UInt32(3)])
+geometry_code(::GI.PolygonTrait) = PolygonTraitCode
+const MultiPointTraitCode = reinterpret(UInt8, [UInt32(4)])
+geometry_code(::GI.MultiPointTrait) = MultiPointTraitCode
+const MultiLineStringTraitCode = reinterpret(UInt8, [UInt32(5)])
+geometry_code(::GI.MultiLineStringTrait) = MultiLineStringTraitCode
+const MultiPolygonTraitCode = reinterpret(UInt8, [UInt32(6)])
+geometry_code(::GI.MultiPolygonTrait) = MultiPolygonTraitCode
+const GeometryCollectionTraitCode = reinterpret(UInt8, [UInt32(7)])
+geometry_code(::GI.GeometryCollectionTrait) = GeometryCollectionTraitCode
 
 const geowkb = Dict{DataType,UInt32}(
     GI.PointTrait => UInt32(1),
@@ -24,7 +38,7 @@ const geowkb = Dict{DataType,UInt32}(
     GI.GeometryCollectionTrait => UInt32(7),
 )
 const wkbgeo = Dict{UInt32,DataType}(zip(values(geowkb), keys(geowkb)))
-geometry_code(T) = geowkb[typeof(T)]
+
 
 """
     getwkb(geom)
@@ -46,11 +60,30 @@ Push WKB to `data` for a Pointlike `type` of `geom`.
 `first` indicates whether we need to indicate the type in case this outer geometry or part of a GeometryCollection.
 """
 function getwkb!(data::Vector{UInt8}, type::GI.PointTrait, geom, first::Bool)
-    first && push!(data, 0x01)  # endianness
-    first && append!(data, reinterpret(UInt8, [geometry_code(type)]))
+    first && sizehint!(data, 21)
+    first && push!(data, 0x01)   # endianness
+    first && append!(data, geometry_code(type))
     for i in 1:GI.ncoord(geom)
-        append!(data, reinterpret(UInt8, Float64[GI.getcoord(geom, i)]))
+        append_uint8!(data, Float64(GI.getcoord(geom, i)))
     end
+end
+
+append_uint8!(data::Vector{UInt8}, value::Float64) = append_uint8!(data, reinterpret(UInt64, value))
+function append_uint8!(data::Vector{UInt8}, value::UInt32)
+    push!(data, value >> 0 & 0xff)
+    push!(data, value >> 8 & 0xff)
+    push!(data, value >> 16 & 0xff)
+    push!(data, value >> 24 & 0xff)
+end
+function append_uint8!(data::Vector{UInt8}, value::UInt64)
+    push!(data, value >> 0 & 0xff)
+    push!(data, value >> 8 & 0xff)
+    push!(data, value >> 16 & 0xff)
+    push!(data, value >> 24 & 0xff)
+    push!(data, value >> 32 & 0xff)
+    push!(data, value >> 40 & 0xff)
+    push!(data, value >> 48 & 0xff)
+    push!(data, value >> 56 & 0xff)
 end
 
 """
@@ -61,10 +94,11 @@ Push WKB to `data` for non Pointlike `type` of `geom`.
 a geometrycollection.
 """
 function _getwkb!(data::Vector{UInt8}, type, geom, first::Bool, repeat::Bool)
+    first && sizehint!(data, 42)  # smallest non-point geometry is a line with 2 points
     first && push!(data, 0x01)  # endianness
-    first && append!(data, reinterpret(UInt8, [geometry_code(type)]))
+    first && append!(data, geometry_code(type))
     n = GI.ngeom(geom)
-    append!(data, reinterpret(UInt8, [UInt32(n)]))
+    append_uint8!(data, UInt32(n))
     for i in 1:n
         sgeom = GI.getgeom(geom, i)
         type = GI.geomtrait(sgeom)
@@ -96,7 +130,7 @@ GI.isgeometry(::WKBtype) = true
 
 function GI.geomtrait(geom::WKBtype)
     check_endianness(geom.val)
-    wkbtype = reinterpret(UInt32, geom.val[2:5])[1]
+    wkbtype = reinterpret(UInt32, view(geom.val, 2:5))[1]
     type = get(wkbgeo, wkbtype, nothing)
     if isnothing(type)
         @warn "unknown geometry type" wkbtype
@@ -112,6 +146,12 @@ function GI.getcoord(::GI.PointTrait, geom::WKBtype, i)
     offset = (i - 1) * sizeof(Float64) + 1
     data = geom.val[headersize+offset:headersize+offset+sizeof(Float64)-1]
     reinterpret(Float64, data)[1]
+end
+
+function GI.getcoord(::GI.PointTrait, geom::WKBtype)
+    offset = 1
+    data = @view geom.val[headersize+offset:headersize+offset+sizeof(Float64)*2-1]
+    reinterpret(Float64, data)
 end
 
 GI.ngeom(::Point, geom::WKBtype) = 0
