@@ -21,16 +21,16 @@ POLYGON (((35 10, 45 45, 15 40, 10 20, 35 10),
 
 # Map GeoInterface type traits directly to their WKT String representation
 const geowkt = Dict{DataType,String}(
-    GI.PointTrait => "POINT ",
-    GI.LineStringTrait => "LINESTRING ",
-    GI.PolygonTrait => "POLYGON ",
-    GI.MultiPointTrait => "MULTIPOINT ",
-    GI.MultiLineStringTrait => "MULTILINESTRING ",
-    GI.MultiPolygonTrait => "MULTIPOLYGON ",
-    GI.GeometryCollectionTrait => "GEOMETRYCOLLECTION "
+    GI.PointTrait => "POINT",
+    GI.LineStringTrait => "LINESTRING",
+    GI.PolygonTrait => "POLYGON",
+    GI.MultiPointTrait => "MULTIPOINT",
+    GI.MultiLineStringTrait => "MULTILINESTRING",
+    GI.MultiPolygonTrait => "MULTIPOLYGON",
+    GI.GeometryCollectionTrait => "GEOMETRYCOLLECTION"
 )
 const wktgeo = Dict{String,DataType}(zip(values(geowkt), keys(geowkt)))
-geometry_string(T) = geowkt[typeof(T)]
+geometry_string(T) = geowkt[typeof(T)] * " "
 
 """
     getwkt(geom)
@@ -106,8 +106,8 @@ Base.lastindex(wkt::WKTtype) = lastindex(wkt.val)
 
 
 function GI.geomtrait(geom::WKTtype)
-    i = findfirst(' ', geom.val)
-    type = get(wktgeo, geom.val[1:i], nothing)
+    i = findfirst(r"[ ]|[(]", geom.val)
+    type = get(wktgeo, geom.val[begin:i.start-1], nothing)
     if isnothing(type)
         @warn "unknown geometry type" geom.val
         return nothing

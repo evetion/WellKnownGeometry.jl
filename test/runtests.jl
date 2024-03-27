@@ -90,4 +90,10 @@ import ArchGDAL
     @testset "Number types" begin
         @test GFT.val(WKG.getwkb((1.0, 2.0))) == GFT.val(WKG.getwkb((1.0f0, 2.0f0)))
     end
+
+    @testset "Oddities" begin
+        # Without a space
+        wkt = GFT.WellKnownText(GFT.Geom(), "POINT(30 10)")
+        @test GI.testgeometry(wkt)
+    end
 end
