@@ -13,6 +13,20 @@ is true for a GeometryCollection, when the subgeometry types are not known befor
 """
 
 # Map GeoInterface type traits directly to their WKB UInt32 interpretation
+const PointTraitCode = UInt32(1)
+geometry_code(::GI.PointTrait) = PointTraitCode
+const LineStringTraitCode = UInt32(2)
+geometry_code(::GI.LineStringTrait) = LineStringTraitCode
+const PolygonTraitCode = UInt32(3)
+geometry_code(::GI.PolygonTrait) = PolygonTraitCode
+const MultiPointTraitCode = UInt32(4)
+geometry_code(::GI.MultiPointTrait) = MultiPointTraitCode
+const MultiLineStringTraitCode = UInt32(5)
+geometry_code(::GI.MultiLineStringTrait) = MultiLineStringTraitCode
+const MultiPolygonTraitCode = UInt32(6)
+geometry_code(::GI.MultiPolygonTrait) = MultiPolygonTraitCode
+const GeometryCollectionTraitCode = UInt32(7)
+geometry_code(::GI.GeometryCollectionTrait) = GeometryCollectionTraitCode
 
 # bitflags for EWKB
 const wkbZ = 0x80000000
@@ -29,12 +43,13 @@ const geowkb = Dict{DataType,UInt32}(
     GI.GeometryCollectionTrait => UInt32(7),
 )
 const wkbgeo = Dict{UInt32,DataType}(zip(values(geowkb), keys(geowkb)))
-geometry_code(T) = geowkb[typeof(T)]
+
 
 """
     getwkb(geom)
 
-Retrieve the Well Known Binary (WKB) as `Vector{UInt8}` for a `geom` that implements the GeoInterface.
+Retrieve the Well Known Binary (WKB) as `GeoFormatTypes.WellKnownBinary` for a `geom` that implements the GeoInterface.
+Use `GeoFormatTypes.val` to get the Vector{UInt8} representation.
 """
 function getwkb(geom)
     data = UInt8[]
@@ -52,15 +67,35 @@ Push WKB to `data` for a Pointlike `type` of `geom`.
 function getwkb!(data::Vector{UInt8}, type::GI.PointTrait, geom, first::Bool)
     ncoord = GI.ncoord(geom)
     if first
+        sizehint!(data, 21)
         push!(data, 0x01)  # endianness
         wkbtype = geometry_code(type)
         ncoord == 3 && (wkbtype |= wkbZ)
         ncoord == 4 && (wkbtype |= wkbZM)
-        append!(data, reinterpret(UInt8, [wkbtype]))
+        # append!(data, reinterpret(UInt8, [wkbtype]))
+        append_uint8!(data, wkbtype)
     end
     for i in 1:ncoord
-        append!(data, reinterpret(UInt8, [GI.getcoord(geom, i)]))
+        append_uint8!(data, Float64(GI.getcoord(geom, i)))
     end
+end
+
+append_uint8!(data::Vector{UInt8}, value::Float64) = append_uint8!(data, reinterpret(UInt64, value))
+function append_uint8!(data::Vector{UInt8}, value::UInt32)
+    push!(data, value >> 0 & 0xff)
+    push!(data, value >> 8 & 0xff)
+    push!(data, value >> 16 & 0xff)
+    push!(data, value >> 24 & 0xff)
+end
+function append_uint8!(data::Vector{UInt8}, value::UInt64)
+    push!(data, value >> 0 & 0xff)
+    push!(data, value >> 8 & 0xff)
+    push!(data, value >> 16 & 0xff)
+    push!(data, value >> 24 & 0xff)
+    push!(data, value >> 32 & 0xff)
+    push!(data, value >> 40 & 0xff)
+    push!(data, value >> 48 & 0xff)
+    push!(data, value >> 56 & 0xff)
 end
 
 """
@@ -72,15 +107,17 @@ a geometrycollection.
 """
 function _getwkb!(data::Vector{UInt8}, type, geom, first::Bool, repeat::Bool)
     if first
+        sizehint!(data, 42)  # smallest non-point geometry is a line with 2 points
         push!(data, 0x01)  # endianness
         wkbtype = geometry_code(type)
         ncoord = GI.ncoord(geom)
         ncoord == 3 && (wkbtype |= wkbZ)
         ncoord == 4 && (wkbtype |= wkbZM)
-        append!(data, reinterpret(UInt8, [wkbtype]))
+        # append!(data, reinterpret(UInt8, [wkbtype]))
+        append_uint8!(data, wkbtype)
     end
     n = GI.ngeom(geom)
-    append!(data, reinterpret(UInt8, [UInt32(n)]))
+    append_uint8!(data, UInt32(n))
     for i in 1:n
         sgeom = GI.getgeom(geom, i)
         type = GI.geomtrait(sgeom)
@@ -99,21 +136,20 @@ end
 getwkb!(data, ::Nothing, geom, first::Bool) = nothing  # empty geometry has unknown type
 
 # Implement GeoInterface for WKB, as wrapped by GeoFormatTypes
-const WKBtype = GFT.WellKnownBinary{GFT.Geom,Vector{UInt8}}
+const WKBtype = GFT.WellKnownBinary{GFT.Geom,<:AbstractVector{UInt8}}
 struct Point end
 struct Ring end
 
 
 function check_endianness(data)
-    data[1] == 0x01 || error("They are big and I am little... And that's not fair. We don't (yet) support big-endian WKB.")
+    first(data) == 0x01 || error("They are big and I am little... And that's not fair. We don't (yet) support big-endian WKB.")
 end
 
 GI.isgeometry(::WKBtype) = true
 
 function GI.geomtrait(geom::WKBtype)
     check_endianness(geom.val)
-    ewkbtype = reinterpret(UInt32, geom.val[2:5])[1]
-
+    ewkbtype = only(reinterpret(UInt32, @view geom.val[2:2+sizeof(UInt32)-1]))
     wkbtype = (ewkbtype & 0xffff) % 1000
 
     type = get(wkbgeo, wkbtype, nothing)
@@ -127,7 +163,7 @@ end
 
 function GI.ncoord(::GeometryTraits, geom::WKBtype)
     check_endianness(geom.val)
-    wkbtype = reinterpret(UInt32, geom.val[2:5])[1]
+    wkbtype = only(reinterpret(UInt32, @view geom.val[2:5]))
     n = 2
 
     # ISO WKB adds thousands to wkbtype
@@ -143,8 +179,14 @@ end
 
 function GI.getcoord(::GI.PointTrait, geom::WKBtype, i)
     offset = (i - 1) * sizeof(Float64) + 1
-    data = geom.val[headersize+offset:headersize+offset+sizeof(Float64)-1]
-    reinterpret(Float64, data)[1]
+    data = @view geom.val[headersize+offset:headersize+offset+sizeof(Float64)-1]
+    only(reinterpret(Float64, data))
+end
+
+function GI.getcoord(::GI.PointTrait, geom::WKBtype)
+    offset = 1
+    data = @view geom.val[headersize+offset:headersize+offset+sizeof(Float64)*GI.ncoord(geom)-1]
+    reinterpret(Float64, data)
 end
 
 GI.ngeom(::Point, geom::WKBtype) = 0

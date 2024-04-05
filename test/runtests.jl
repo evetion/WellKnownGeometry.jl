@@ -104,6 +104,26 @@ import LibGEOS
         @test GI.testgeometry(wkt)
         @test GI.coordinates(wkt) == [30.0, 10.0]
 
+        wkt = GFT.WellKnownText(GFT.Geom(), "POINT Z (30 10 1)")
+        @test GI.testgeometry(wkt)
+        @test GI.coordinates(wkt) == [30.0, 10.0, 1.0]
+
+        wkt = GFT.WellKnownText(GFT.Geom(), "POINTZ (30 10 1)")
+        @test GI.testgeometry(wkt)
+        @test GI.coordinates(wkt) == [30.0, 10.0, 1.0]
+
+        wkt = GFT.WellKnownText(GFT.Geom(), "POINT M (30 10 1)")
+        @test GI.testgeometry(wkt)
+        @test GI.coordinates(wkt) == [30.0, 10.0, 1.0]
+
+        wkt = GFT.WellKnownText(GFT.Geom(), "POINT ZM (30 10 1 2)")
+        @test GI.testgeometry(wkt)
+        @test GI.coordinates(wkt) == [30.0, 10.0, 1.0, 2.0]
+
+        wkt = GFT.WellKnownText(GFT.Geom(), "POINTZM (30 10 1 2)")
+        @test GI.testgeometry(wkt)
+        @test GI.coordinates(wkt) == [30.0, 10.0, 1.0, 2.0]
+
         wkt = GFT.WellKnownText(GFT.Geom(), "LINESTRING (30.0 10.0, 10.0 30.0, 40.0 40.0)")
         @test GI.testgeometry(wkt)
         @test GI.coordinates(wkt) == [[30.0, 10.0], [10.0, 30.0], [40.0, 40.0]]
@@ -113,7 +133,7 @@ import LibGEOS
         p = LibGEOS.readgeom("POLYGON Z ((0.5 0.5 0.5,1.5 0.5 0.5,1.5 1.5 0.5,0.5 0.5 0.5))")
         # LibGEOS has a space between points
         @test replace(GFT.val(WKG.getwkt(p)), " " => "") == replace(LibGEOS.writegeom(p), " " => "")
-        wkbwriter = LibGEOS.WKBWriter(LibGEOS._context)
+        wkbwriter = LibGEOS.WKBWriter(LibGEOS.get_global_context())
         @test_broken WKG.getwkb(p) == LibGEOS.writegeom(p, wkbwriter)  # LibGEOS doesn't provide 3D type
     end
 
@@ -169,4 +189,13 @@ import LibGEOS
 
     end
 
+    @testset "Number types" begin
+        @test GFT.val(WKG.getwkb((1.0, 2.0))) == GFT.val(WKG.getwkb((1.0f0, 2.0f0)))
+    end
+
+    @testset "Oddities" begin
+        # Without a space
+        wkt = GFT.WellKnownText(GFT.Geom(), "POINT(30 10)")
+        @test GI.testgeometry(wkt)
+    end
 end

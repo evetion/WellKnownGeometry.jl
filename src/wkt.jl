@@ -42,9 +42,10 @@ function geometry_suffix(type, geom)
 end
 
 """
-    getwkt(geom; suffix=true)
+    getwkt(geom)
 
-Retrieve the Well Known Text (WKT) as `String` for a `geom` that implements the GeoInterface.
+Retrieve the Well Known Text (WKT) as `GeoFormatTypes.WellKnownText` for a `geom` that implements the GeoInterface.
+Use `GeoFormatTypes.val` to get the String representation.
 """
 function getwkt(geom)
     data = Char[]
