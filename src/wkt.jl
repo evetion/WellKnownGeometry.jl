@@ -30,7 +30,16 @@ const geowkt = Dict{DataType,String}(
     GI.GeometryCollectionTrait => "GEOMETRYCOLLECTION"
 )
 const wktgeo = Dict{String,DataType}(zip(values(geowkt), keys(geowkt)))
-geometry_string(T) = geowkt[typeof(T)] * " "
+geometry_string(T) = geowkt[typeof(T)]
+function geometry_suffix(type, geom)
+    if GI.ncoord(type, geom) == 3
+        return "Z "
+    elseif GI.ncoord(type, geom) == 4
+        return "ZM "
+    else
+        return ""
+    end
+end
 
 """
     getwkt(geom)
@@ -51,7 +60,11 @@ Push WKT to `data` for a Pointlike `type` of `geom`.
 in case this outer geometry or part of a geometrycollection.
 """
 function getwkt!(data::Vector{Char}, type::GI.AbstractPointTrait, geom, first::Bool)
-    first && append!(data, collect(geometry_string(type)))
+    if first
+        append!(data, collect(geometry_string(type)))
+        append!(data, ' ')
+        append!(data, collect(geometry_suffix(type, geom)))
+    end
     if GI.isempty(geom)
         append!(data, collect("EMPTY"))
     else
@@ -73,7 +86,11 @@ in case this outer geometry. `repeat` indicates whether sub geometries need to p
 a geometrycollection.
 """
 function _getwkt!(data::Vector{Char}, type, geom, first::Bool, repeat::Bool)
-    first && append!(data, collect(geometry_string(type)))
+    if first
+        append!(data, collect(geometry_string(type)))
+        append!(data, ' ')
+        append!(data, collect(geometry_suffix(type, geom)))
+    end
     if GI.isempty(geom)
         append!(data, collect("EMPTY"))
     else
@@ -106,12 +123,12 @@ Base.lastindex(wkt::WKTtype) = lastindex(wkt.val)
 
 
 function GI.geomtrait(geom::WKTtype)
-    i = findfirst(r"[ ]|[(]", geom.val)
-    type = get(wktgeo, geom.val[begin:i.start-1], nothing)
-    if isnothing(type)
+    m = match(r"^(\S+?)(?: )?(?:Z|ZM|M)?(?: |\()", geom.val)
+    if isnothing(m)
         @warn "unknown geometry type" geom.val
         return nothing
     else
+        type = get(wktgeo, String(m[1]), nothing)
         return type()
     end
 end
@@ -119,6 +136,12 @@ end
 function GI.ncoord(::GeometryTraits, geom::WKTtype)
     if occursin("EMPTY", geom.val)
         return 0
+    elseif occursin(r"(.| )ZM( |\()", geom.val)
+        return 4
+    elseif occursin(r"(.| )Z( |\()", geom.val)
+        return 3
+    elseif occursin(r"(.| )M( |\()", geom.val)
+        return 3
     else
         return 2
     end
@@ -212,10 +235,12 @@ function GI.getgeom(
             f = index + 1
         end
     end
+
+    suff = geometry_suffix(T, geom)
     if isnothing(findfirst("(", @view s[f:l]))
-        data = geometry_string(sub) * "(" * s[f:l] * ")"
+        data = geometry_string(sub) * suff * " (" * s[f:l] * ")"
     else
-        data = geometry_string(sub) * s[f:l]
+        data = geometry_string(sub) * suff * s[f:l]
     end
     return WKTtype(gftgeom, data)
 end
