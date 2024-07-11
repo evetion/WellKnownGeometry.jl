@@ -244,3 +244,5 @@ function GI.getgeom(
     end
     return WKTtype(gftgeom, data)
 end
+
+GI.astext(::GI.AbstractGeometryTrait, geom) = getwkt(geom)

@@ -198,4 +198,30 @@ import LibGEOS
         wkt = GFT.WellKnownText(GFT.Geom(), "POINT(30 10)")
         @test GI.testgeometry(wkt)
     end
+
+    @testset "GeoInterface piracy" begin
+        @test GI.astext((1.0, 2.0)) == GFT.WellKnownText(GFT.Geom(), "POINT (1.0 2.0)")
+        @test GI.asbinary((1.0, 2.0)).val == UInt8[
+            0x01,
+            0x01,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0xf0,
+            0x3f,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x40]
+    end
 end
