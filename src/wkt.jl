@@ -158,9 +158,9 @@ function GI.getcoord(::GI.PointTrait, geom::WKTtype, i)
     return f
 end
 
-GI.ngeom(::Point, geom) = 0
-GI.ngeom(::GI.PointTrait, geom) = 0
-function GI.ngeom(::GI.AbstractGeometryTrait, geom)
+GI.ngeom(::Point, geom::WKTtype) = 0
+GI.ngeom(::GI.PointTrait, geom::WKTtype) = 0
+function GI.ngeom(::GI.AbstractGeometryTrait, geom::WKTtype)
     s = geom.val
     occursin("EMPTY", s) && return 0
     ngeo = 1  # always one geometry

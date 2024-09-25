@@ -219,6 +219,16 @@ function GI.getgeom(
     geom::WKBtype,
     i::Integer,
 )
+    ncoord = GI.ncoord(geom)
+    GI.getgeom(T, geom, i, ncoord)
+end
+
+function GI.getgeom(
+    T::GI.LineStringTrait,
+    geom::WKBtype,
+    i::Integer,
+    ncoord::Integer,
+)
     size = headersize + numsize
     offset = 0  # size of geom at i
     ncoord = GI.ncoord(geom)
