@@ -305,3 +305,5 @@ function typesize(T::GI.GeometryCollectionTrait, geom, n::Integer)
     end
     return size
 end
+
+GI.asbinary(::GI.AbstractGeometryTrait, geom) = WellKnownGeometry.getwkb(geom)
