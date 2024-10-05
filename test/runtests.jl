@@ -224,4 +224,16 @@ import LibGEOS
             0x00,
             0x40]
     end
+
+    @testset "Simple wrapper Polygon #37" begin
+        GI.astext(GI.Polygon([GI.LinearRing([(50, 60), (50, 61), (51, 61), (51, 60), (50, 60)])]))
+        GI.asbinary(GI.Polygon([GI.LinearRing([(50, 60), (50, 61), (51, 61), (51, 60), (50, 60)])]))
+    end
+
+    @testset "LinearRing #36" begin
+        rings = GI.astext(GI.LinearRing([(50, 60), (50, 61), (51, 61), (51, 60), (50, 60)]))
+        @test GI.geomtrait(rings) == GI.LinearRingTrait()
+        ringb = GI.asbinary(GI.LinearRing([(50, 60), (50, 61), (51, 61), (51, 60), (50, 60)]))
+        @test GI.geomtrait(ringb) == GI.LineStringTrait()
+    end
 end
