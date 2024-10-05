@@ -23,6 +23,7 @@ POLYGON (((35 10, 45 45, 15 40, 10 20, 35 10),
 const geowkt = Dict{DataType,String}(
     GI.PointTrait => "POINT",
     GI.LineStringTrait => "LINESTRING",
+    GI.LinearRingTrait => "LINEARRING",
     GI.PolygonTrait => "POLYGON",
     GI.MultiPointTrait => "MULTIPOINT",
     GI.MultiLineStringTrait => "MULTILINESTRING",

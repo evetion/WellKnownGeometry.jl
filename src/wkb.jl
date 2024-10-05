@@ -16,7 +16,7 @@ is true for a GeometryCollection, when the subgeometry types are not known befor
 const PointTraitCode = UInt32(1)
 geometry_code(::GI.PointTrait) = PointTraitCode
 const LineStringTraitCode = UInt32(2)
-geometry_code(::GI.LineStringTrait) = LineStringTraitCode
+geometry_code(::GI.AbstractLineStringTrait) = LineStringTraitCode
 const PolygonTraitCode = UInt32(3)
 geometry_code(::GI.PolygonTrait) = PolygonTraitCode
 const MultiPointTraitCode = UInt32(4)
