@@ -18,8 +18,8 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - "1.6"
-          - "1"
+          - "lts"
+          - "release"
           - "nightly"
         os:
           - ubuntu-latest
@@ -44,8 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
-        with:
-          version: "1"
+      - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-docdeploy@v1
         env:
