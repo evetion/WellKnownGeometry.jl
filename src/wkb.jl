@@ -33,18 +33,6 @@ const wkbZ = 0x80000000
 const wkbM = 0x40000000
 const wkbSRID = 0x20000000
 
-const geowkb = Dict{DataType,UInt32}(
-    GI.PointTrait => UInt32(1),
-    GI.LineStringTrait => UInt32(2),
-    GI.PolygonTrait => UInt32(3),
-    GI.MultiPointTrait => UInt32(4),
-    GI.MultiLineStringTrait => UInt32(5),
-    GI.MultiPolygonTrait => UInt32(6),
-    GI.GeometryCollectionTrait => UInt32(7),
-)
-const wkbgeo = Dict{UInt32,DataType}(zip(values(geowkb), keys(geowkb)))
-
-
 """
     getwkb(geom)
 
@@ -72,7 +60,6 @@ function getwkb!(data::Vector{UInt8}, type::GI.PointTrait, geom, first::Bool)
         wkbtype = geometry_code(type)
         ncoord == 3 && (wkbtype |= wkbZ)
         ncoord == 4 && (wkbtype |= wkbZM)
-        # append!(data, reinterpret(UInt8, [wkbtype]))
         append_uint8!(data, wkbtype)
     end
     for i in 1:ncoord
@@ -110,13 +97,13 @@ function _getwkb!(data::Vector{UInt8}, type, geom, first::Bool, repeat::Bool)
         sizehint!(data, 42)  # smallest non-point geometry is a line with 2 points
         push!(data, 0x01)  # endianness
         wkbtype = geometry_code(type)
-        ncoord = GI.ncoord(geom)
+        ncoord = GI.ncoord(type, geom)
         ncoord == 3 && (wkbtype |= wkbZ)
         ncoord == 4 && (wkbtype |= wkbZM)
         # append!(data, reinterpret(UInt8, [wkbtype]))
         append_uint8!(data, wkbtype)
     end
-    n = GI.ngeom(geom)
+    n = GI.ngeom(type, geom)
     append_uint8!(data, UInt32(n))
     for i in 1:n
         sgeom = GI.getgeom(geom, i)
@@ -152,12 +139,22 @@ function GI.geomtrait(geom::WKBtype)
     ewkbtype = only(reinterpret(UInt32, @view geom.val[2:2+sizeof(UInt32)-1]))
     wkbtype = (ewkbtype & 0xffff) % 1000
 
-    type = get(wkbgeo, wkbtype, nothing)
-    if isnothing(type)
-        @warn "unknown geometry type" wkbtype
-        return nothing
+    if wkbtype == 1
+        GI.PointTrait()
+    elseif wkbtype == 2
+        GI.LineStringTrait()
+    elseif wkbtype == 3
+        GI.PolygonTrait()
+    elseif wkbtype == 4
+        GI.MultiPointTrait()
+    elseif wkbtype == 5
+        GI.MultiLineStringTrait()
+    elseif wkbtype == 6
+        GI.MultiPolygonTrait()
+    elseif wkbtype == 7
+        GI.GeometryCollectionTrait()
     else
-        return type()
+        error("unknown geometry type $wkbtype")
     end
 end
 
@@ -183,11 +180,19 @@ function GI.getcoord(::GI.PointTrait, geom::WKBtype, i)
     only(reinterpret(Float64, data))
 end
 
-function GI.getcoord(::GI.PointTrait, geom::WKBtype)
+function GI.getcoord(T::GI.PointTrait, geom::WKBtype)
     offset = 1
-    data = @view geom.val[headersize+offset:headersize+offset+sizeof(Float64)*GI.ncoord(geom)-1]
-    reinterpret(Float64, data)
+    ncoord = GI.ncoord(T, geom)
+    data = @view geom.val[headersize+offset:headersize+offset+sizeof(Float64)*ncoord-1]
+    _getcoord(data, Val(ncoord))
 end
+
+_getcoord(data, n::Val{2}) = only(_getcoords(data, n))
+_getcoord(data, n::Val{3}) = only(_getcoords(data, n))
+_getcoord(data, n::Val{4}) = only(_getcoords(data, n))
+_getcoords(data, ::Val{2}) = reinterpret(NTuple{2,Float64}, data)
+_getcoords(data, ::Val{3}) = reinterpret(NTuple{3,Float64}, data)
+_getcoords(data, ::Val{4}) = reinterpret(NTuple{4,Float64}, data)
 
 GI.ngeom(::Point, geom::WKBtype) = 0
 GI.ngeom(::Ring, geom::WKBtype) = reinterpret(UInt32, geom.val[1:4])[1]
@@ -210,7 +215,7 @@ function GI.getgeom(
         offset = typesize(GI.geomtrait(geom[size+1:end]), geom[size+1:end], GI.ncoord(geom))
         size += offset
     end
-    return geom[size-offset+1:size]
+    return GFT.WellKnownBinary(GFT.Geom(), @view geom.val[size-offset+1:size])
 end
 
 # LineStrings do have multiple points without their endianess and type prefix set
@@ -219,7 +224,7 @@ function GI.getgeom(
     geom::WKBtype,
     i::Integer,
 )
-    ncoord = GI.ncoord(geom)
+    ncoord = GI.ncoord(T, geom)
     GI.getgeom(T, geom, i, ncoord)
 end
 
@@ -231,7 +236,7 @@ function GI.getgeom(
 )
     size = headersize + numsize
     offset = 0  # size of geom at i
-    ncoord = GI.ncoord(geom)
+    ncoord = GI.ncoord(T, geom)
     for _ in 1:i
         offset = typesize(wkbsubtype(T), geom[size+1:end], ncoord)
         size += offset
@@ -244,6 +249,24 @@ function GI.getgeom(
     return GFT.WellKnownBinary(GFT.Geom(), data)
 end
 
+function GI.coordinates(
+    T::GI.LineStringTrait,
+    geom::WKBtype,
+)
+    size = headersize + numsize
+    ncoord = GI.ncoord(T, geom)
+    offset = typesize(wkbsubtype(T), geom[size+1:end], ncoord)
+    data = @view geom.val[size+1:size+offset*GI.ngeom(T, geom)]
+    @inline _getcoords(data, Val(ncoord))
+end
+
+function GI.coordinates(
+    T::GI.PointTrait,
+    geom::WKBtype,
+)
+    GI.getcoord(T, geom)
+end
+
 # Polygons do have multiple rings without their endianess and type prefix set
 function GI.getgeom(
     T::GI.PolygonTrait,
@@ -252,7 +275,7 @@ function GI.getgeom(
 )
     size = headersize + numsize
     offset = 0  # size of geom at i
-    ncoord = GI.ncoord(geom)
+    ncoord = GI.ncoord(T, geom)
     for _ in 1:i
         offset = typesize(wkbsubtype(T), geom[size+1:end], ncoord)
         size += offset
