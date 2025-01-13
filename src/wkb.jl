@@ -146,6 +146,7 @@ function check_endianness(data)
 end
 
 GI.isgeometry(::WKBtype) = true
+GI.isgeometry(::Type{<:GFT.WellKnownBinary}) = true
 
 function GI.geomtrait(geom::WKBtype)
     check_endianness(geom.val)

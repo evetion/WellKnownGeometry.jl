@@ -118,6 +118,7 @@ end
 # Implement GeoInterface for WKT, as wrapped by GeoFormatTypes
 const WKTtype = GFT.WellKnownText{GFT.Geom}
 GI.isgeometry(::WKTtype) = true
+GI.isgeometry(::Type{<:GFT.WellKnownText{GFT.Geom}}) = true
 
 Base.getindex(wkt::WKTtype, i) = GFT.WellKnownText(gftgeom, wkt.val[i])
 Base.lastindex(wkt::WKTtype) = lastindex(wkt.val)
