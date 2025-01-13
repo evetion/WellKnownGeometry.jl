@@ -98,7 +98,9 @@ import LibGEOS
         wkb = GFT.WellKnownBinary(GFT.Geom(), [0x0])
 
         @test GI.isgeometry(wkt)
+        @test GI.isgeometry(typeof(wkt))
         @test GI.isgeometry(wkb)
+        @test GI.isgeometry(typeof(wkb))
 
         wkt = GFT.WellKnownText(GFT.Geom(), "POINT (30 10)")
         @test GI.testgeometry(wkt)
