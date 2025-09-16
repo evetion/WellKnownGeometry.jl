@@ -308,3 +308,8 @@ function typesize(T::GI.GeometryCollectionTrait, geom, n::Integer)
 end
 
 GI.asbinary(::GI.AbstractGeometryTrait, geom) = WellKnownGeometry.getwkb(geom)
+
+# coordtype implementation - WellKnownGeometry always uses Float64
+if :coordtype in names(GI; all = true)
+    GI.coordtype(::GI.AbstractGeometryTrait, geom::WKBtype) = Float64
+end

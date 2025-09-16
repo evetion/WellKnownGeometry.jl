@@ -248,3 +248,8 @@ function GI.getgeom(
 end
 
 GI.astext(::GI.AbstractGeometryTrait, geom) = getwkt(geom)
+
+# coordtype implementation - WellKnownGeometry always uses Float64
+if :coordtype in names(GI; all = true)
+    GI.coordtype(::GI.AbstractGeometryTrait, geom::WKTtype) = Float64
+end
