@@ -20,5 +20,5 @@ include("wkb.jl")
 include("wkt.jl")
 
 export getwkb, getwkt
-
+export @wkt_str, @wkb_str, wrap
 end

@@ -116,6 +116,9 @@ function getwkt!(data::Vector{Char}, type::GI.GeometryCollectionTrait, geom, fir
 end
 
 # Implement GeoInterface for WKT, as wrapped by GeoFormatTypes
+macro wkt_str(wkt) GFT.WellKnownText(GFT.Geom(), wkt) end
+wrap(string::AbstractString) = GFT.WellKnownText(GFT.Geom(), string)
+
 const WKTtype = GFT.WellKnownText{GFT.Geom}
 GI.isgeometry(::WKTtype) = true
 GI.isgeometry(::Type{<:GFT.WellKnownText{GFT.Geom}}) = true

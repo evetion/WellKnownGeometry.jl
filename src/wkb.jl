@@ -31,6 +31,7 @@ geometry_code(::GI.GeometryCollectionTrait) = GeometryCollectionTraitCode
 # bitflags for EWKB
 const wkbZ = 0x80000000
 const wkbM = 0x40000000
+const wkbZM = wkbZ | wkbM
 const wkbSRID = 0x20000000
 
 const geowkb = Dict{DataType,UInt32}(
@@ -140,6 +141,9 @@ const WKBtype = GFT.WellKnownBinary{GFT.Geom,<:AbstractVector{UInt8}}
 struct Point end
 struct Ring end
 
+wrap(data::Vector{UInt8}) = GFT.WellKnownBinary(GFT.Geom(), data)
+wrap(data::Base.CodeUnits{UInt8, String}) = GFT.WellKnownBinary(GFT.Geom(), data)
+macro wkb_str(wkb) GFT.WellKnownBinary(GFT.Geom(), hex2bytes(wkb)) end
 
 function check_endianness(data)
     first(data) == 0x01 || error("They are big and I am little... And that's not fair. We don't (yet) support big-endian WKB.")
