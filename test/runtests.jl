@@ -189,6 +189,9 @@ import LibGEOS
         @test GI.ncoord(wkt) == 4
         @test GI.coordinates(wkt) == [1.0, 1.0, 1.0, 1.0]
 
+        # Make sure we can roundtrip
+        wkb = WKG.getwkb(WKG.wkt"POINTZM(1 1 1 1)")
+        @test GI.ncoord(wkb) == 4
     end
 
     @testset "Number types" begin
@@ -237,5 +240,16 @@ import LibGEOS
         @test GI.geomtrait(rings) == GI.LinearRingTrait()
         ringb = GI.asbinary(GI.LinearRing([(50, 60), (50, 61), (51, 61), (51, 60), (50, 60)]))
         @test GI.geomtrait(ringb) == GI.LineStringTrait()
+    end
+
+    @testset "Wrapping" begin
+        wkta = WKG.wrap("POINT (30 10)")
+        wktb = WKG.wkt"POINT (30 10)"
+        @test wkta == wktb
+
+        wkba = WKG.wrap([0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3e, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x24, 0x40])
+        wkbb = WKG.wrap(b"\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3e\x40\x00\x00\x00\x00\x00\x00\x24\x40")
+        wkbc = WKG.wkb"01010000000000000000003e400000000000002440"
+        @test wkba == wkbb == wkbc
     end
 end

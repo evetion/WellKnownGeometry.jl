@@ -21,8 +21,9 @@ using GeoFormatTypes
 using WellKnownGeometry
 using GeoInterface
 
-wkts = "POINT (30 10)"
-wkt = GeoFormatTypes.WellKnownText(GeoFormatTypes.Geom(), wkts)
+# Use `wrap` or the `@wkt_str` macro to create a WKT geometry
+wkt = wrap("POINT (30 10)")
+wkt = wkt"POINT (30 10)"
 
 GeoInterface.geomtrait(wkt)  # PointTrait()
 GeoInterface.ncoord(wkt)  # 2
@@ -52,8 +53,10 @@ using GeoFormatTypes
 using WellKnownGeometry
 using GeoInterface
 
-wkbs = [0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3e, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x24, 0x40]
-wkb = GeoFormatTypes.WellKnownBinary(GeoFormatTypes.Geom(), wkbs)
+# Use `wrap` or the `@wkb_str` macro to create a WKB geometry
+wkb = wrap([0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3e, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x24, 0x40])
+wkb = wrap(b"\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3e\x40\x00\x00\x00\x00\x00\x00\x24\x40")
+wkb = wkb"01010000000000000000003e400000000000002440"
 
 GeoInterface.geomtrait(wkb)  # PointTrait()
 GeoInterface.ncoord(wkb)  # 2
@@ -66,6 +69,7 @@ As ArchGDAL geometries implement GeoInterface, we can generate the WKB for it.
 ```julia
 wkb = WellKnownGeometry.getwkb(p)  # WellKnownBinary{GeoFormatTypes.Geom, Vector{UInt8}}(GeoFormatTypes.Geom(), UInt8[0x01, ..., 0x40])
 GeoFormatTypes.val(wkb)  # 21-element Vector{UInt8}:  0x01 0x01 ... 0x00 0x40
+bytes2hex(GeoFormatTypes.val(wkb))  # "01010000000000000000003e400000000000002440"
 ```
 
 ```@docs
