@@ -34,17 +34,14 @@ const wkbM = 0x40000000
 const wkbZM = wkbZ | wkbM
 const wkbSRID = 0x20000000
 
-const geowkb = Dict{DataType,UInt32}(
-    GI.PointTrait => UInt32(1),
-    GI.LineStringTrait => UInt32(2),
-    GI.PolygonTrait => UInt32(3),
-    GI.MultiPointTrait => UInt32(4),
-    GI.MultiLineStringTrait => UInt32(5),
-    GI.MultiPolygonTrait => UInt32(6),
-    GI.GeometryCollectionTrait => UInt32(7),
-)
-const wkbgeo = Dict{UInt32,DataType}(zip(values(geowkb), keys(geowkb)))
+# Fast little-endian readers using bitshifting (avoids reinterpret allocations)
+@inline function read_uint32(data, offset)
+    @inbounds UInt32(data[offset]) | UInt32(data[offset+1]) << 8 | UInt32(data[offset+2]) << 16 | UInt32(data[offset+3]) << 24
+end
 
+@inline function read_float64(data, offset)
+    @inbounds reinterpret(Float64, UInt64(data[offset]) | UInt64(data[offset+1]) << 8 | UInt64(data[offset+2]) << 16 | UInt64(data[offset+3]) << 24 | UInt64(data[offset+4]) << 32 | UInt64(data[offset+5]) << 40 | UInt64(data[offset+6]) << 48 | UInt64(data[offset+7]) << 56)
+end
 
 """
     getwkb(geom)
@@ -66,14 +63,13 @@ Push WKB to `data` for a Pointlike `type` of `geom`.
 `first` indicates whether we need to indicate the type in case this outer geometry or part of a GeometryCollection.
 """
 function getwkb!(data::Vector{UInt8}, type::GI.PointTrait, geom, first::Bool)
-    ncoord = GI.ncoord(geom)
+    ncoord = GI.ncoord(type, geom)
     if first
         sizehint!(data, 21)
         push!(data, 0x01)  # endianness
         wkbtype = geometry_code(type)
         ncoord == 3 && (wkbtype |= wkbZ)
         ncoord == 4 && (wkbtype |= wkbZM)
-        # append!(data, reinterpret(UInt8, [wkbtype]))
         append_uint8!(data, wkbtype)
     end
     for i in 1:ncoord
@@ -87,6 +83,12 @@ function append_uint8!(data::Vector{UInt8}, value::UInt32)
     push!(data, value >> 8 & 0xff)
     push!(data, value >> 16 & 0xff)
     push!(data, value >> 24 & 0xff)
+end
+function append_uint8!(data::Vector{UInt8}, value::UInt32, offset::Int)
+    data[offset] = value >> 0 & 0xff
+    data[offset + 1] = value >> 8 & 0xff
+    data[offset + 2] = value >> 16 & 0xff
+    data[offset + 3] = value >> 24 & 0xff
 end
 function append_uint8!(data::Vector{UInt8}, value::UInt64)
     push!(data, value >> 0 & 0xff)
@@ -111,13 +113,13 @@ function _getwkb!(data::Vector{UInt8}, type, geom, first::Bool, repeat::Bool)
         sizehint!(data, 42)  # smallest non-point geometry is a line with 2 points
         push!(data, 0x01)  # endianness
         wkbtype = geometry_code(type)
-        ncoord = GI.ncoord(geom)
+        ncoord = GI.ncoord(type, geom)
         ncoord == 3 && (wkbtype |= wkbZ)
         ncoord == 4 && (wkbtype |= wkbZM)
         # append!(data, reinterpret(UInt8, [wkbtype]))
         append_uint8!(data, wkbtype)
     end
-    n = GI.ngeom(geom)
+    n = GI.ngeom(type, geom)
     append_uint8!(data, UInt32(n))
     for i in 1:n
         sgeom = GI.getgeom(geom, i)
@@ -154,21 +156,31 @@ GI.isgeometry(::Type{<:GFT.WellKnownBinary}) = true
 
 function GI.geomtrait(geom::WKBtype)
     check_endianness(geom.val)
-    ewkbtype = only(reinterpret(UInt32, @view geom.val[2:2+sizeof(UInt32)-1]))
+    ewkbtype = read_uint32(geom.val, 2)
     wkbtype = (ewkbtype & 0xffff) % 1000
 
-    type = get(wkbgeo, wkbtype, nothing)
-    if isnothing(type)
-        @warn "unknown geometry type" wkbtype
-        return nothing
+    if wkbtype == 1
+        GI.PointTrait()
+    elseif wkbtype == 2
+        GI.LineStringTrait()
+    elseif wkbtype == 3
+        GI.PolygonTrait()
+    elseif wkbtype == 4
+        GI.MultiPointTrait()
+    elseif wkbtype == 5
+        GI.MultiLineStringTrait()
+    elseif wkbtype == 6
+        GI.MultiPolygonTrait()
+    elseif wkbtype == 7
+        GI.GeometryCollectionTrait()
     else
-        return type()
+        error("unknown geometry type $wkbtype")
     end
 end
 
 function GI.ncoord(::GeometryTraits, geom::WKBtype)
     check_endianness(geom.val)
-    wkbtype = only(reinterpret(UInt32, @view geom.val[2:5]))
+    wkbtype = read_uint32(geom.val, 2)
     n = 2
 
     # ISO WKB adds thousands to wkbtype
@@ -183,21 +195,20 @@ function GI.ncoord(::GeometryTraits, geom::WKBtype)
 end
 
 function GI.getcoord(::GI.PointTrait, geom::WKBtype, i)
-    offset = (i - 1) * sizeof(Float64) + 1
-    data = @view geom.val[headersize+offset:headersize+offset+sizeof(Float64)-1]
-    only(reinterpret(Float64, data))
+    offset = headersize + (i - 1) * sizeof(Float64) + 1
+    read_float64(geom.val, offset)
 end
 
-function GI.getcoord(::GI.PointTrait, geom::WKBtype)
+function GI.getcoord(T::GI.PointTrait, geom::WKBtype)
     offset = 1
-    data = @view geom.val[headersize+offset:headersize+offset+sizeof(Float64)*GI.ncoord(geom)-1]
+    data = @view geom.val[headersize+offset:headersize+offset+sizeof(Float64)*GI.ncoord(T, geom)-1]
     reinterpret(Float64, data)
 end
 
 GI.ngeom(::Point, geom::WKBtype) = 0
-GI.ngeom(::Ring, geom::WKBtype) = reinterpret(UInt32, geom.val[1:4])[1]
+GI.ngeom(::Ring, geom::WKBtype) = read_uint32(geom.val, 1)
 GI.ngeom(::GI.PointTrait, geom::WKBtype) = 0
-GI.ngeom(::GI.AbstractGeometryTrait, geom::WKBtype) = reinterpret(UInt32, geom.val[headersize+1:headersize+1+sizeof(UInt32)-1])[1]
+GI.ngeom(::GI.AbstractGeometryTrait, geom::WKBtype) = read_uint32(geom.val, headersize + 1)
 
 
 # Two issues to solve, subgeometries in WKB & WKT are not "complete".
@@ -212,7 +223,8 @@ function GI.getgeom(
     size = headersize + numsize
     offset = 0  # size of geom at i
     for _ in 1:i
-        offset = typesize(GI.geomtrait(geom[size+1:end]), geom[size+1:end], GI.ncoord(geom))
+        tgeom = GFT.WellKnownBinary(GFT.Geom(), view(geom.val, size+1:lastindex(geom.val)))
+        offset = typesize(GI.geomtrait(tgeom), tgeom, GI.ncoord(T, geom))
         size += offset
     end
     return geom[size-offset+1:size]
@@ -224,7 +236,7 @@ function GI.getgeom(
     geom::WKBtype,
     i::Integer,
 )
-    ncoord = GI.ncoord(geom)
+    ncoord = GI.ncoord(T, geom)
     GI.getgeom(T, geom, i, ncoord)
 end
 
@@ -234,18 +246,16 @@ function GI.getgeom(
     i::Integer,
     ncoord::Integer,
 )
-    size = headersize + numsize
-    offset = 0  # size of geom at i
-    ncoord = GI.ncoord(geom)
-    for _ in 1:i
-        offset = typesize(wkbsubtype(T), geom[size+1:end], ncoord)
-        size += offset
-    end
+    pointsize = sizeof(Float64) * ncoord  # Point size is constant for LineString
+    src_offset = headersize + numsize + (i - 1) * pointsize + 1
     wkbtype = geometry_code(GI.PointTrait())
     ncoord == 3 && (wkbtype |= wkbZ)
     ncoord == 4 && (wkbtype |= wkbZM)
 
-    data = vcat(geom.val[1], reinterpret(UInt8, [wkbtype]), geom.val[size-offset+1:size])
+    data = Vector{UInt8}(undef, 1 + sizeof(UInt32) + pointsize)
+    data[1] = geom.val[1]
+    append_uint8!(data, wkbtype, 2)
+    copyto!(data, 1 + sizeof(UInt32) + 1, geom.val, src_offset, pointsize)
     return GFT.WellKnownBinary(GFT.Geom(), data)
 end
 
@@ -257,16 +267,19 @@ function GI.getgeom(
 )
     size = headersize + numsize
     offset = 0  # size of geom at i
-    ncoord = GI.ncoord(geom)
+    ncoord = GI.ncoord(T, geom)
     for _ in 1:i
-        offset = typesize(wkbsubtype(T), geom[size+1:end], ncoord)
+        offset = typesize(wkbsubtype(T), GFT.WellKnownBinary(GFT.Geom(), view(geom.val, size+1:lastindex(geom.val))), ncoord)
         size += offset
     end
     wkbtype = geometry_code(GI.LineStringTrait())
     ncoord == 3 && (wkbtype |= wkbZ)
     ncoord == 4 && (wkbtype |= wkbZM)
 
-    data = vcat(geom.val[1], reinterpret(UInt8, [wkbtype]), geom.val[size-offset+1:size])
+    data = Vector{UInt8}(undef, 1 + sizeof(UInt32) + offset)
+    data[1] = geom.val[1]
+    append_uint8!(data, wkbtype, 2)
+    copyto!(data, 1 + sizeof(UInt32) + 1, geom.val, size - offset + 1, offset)
     return GFT.WellKnownBinary(GFT.Geom(), data)
 end
 
@@ -285,28 +298,29 @@ const headersize = 1 + 4
 const numsize = 4
 typesize(::Point, geom, n=2) = sizeof(Float64) * n
 typesize(T::Ring, geom, n::Integer) = numsize + GI.ngeom(T, geom) * typesize(wkbsubtype(T), geom, n)
-typesize(T::GI.PointTrait, geom) = headersize + typesize(wkbsubtype(T), geom, GI.ncoord(geom))
+typesize(T::GI.PointTrait, geom) = headersize + typesize(wkbsubtype(T), geom, GI.ncoord(T, geom))
 typesize(T::GI.PointTrait, geom, n::Integer) = headersize + typesize(wkbsubtype(T), geom, n)
-typesize(T::GI.LineStringTrait, geom) = headersize + numsize + GI.ngeom(T, geom) * typesize(wkbsubtype(T), geom, GI.ncoord(geom))
+typesize(T::GI.LineStringTrait, geom) = headersize + numsize + GI.ngeom(T, geom) * typesize(wkbsubtype(T), geom, GI.ncoord(T, geom))
 typesize(T::GI.LineStringTrait, geom, n::Integer) = headersize + numsize + GI.ngeom(T, geom) * typesize(wkbsubtype(T), geom, n)
 function typesize(T::GI.AbstractGeometryTrait, geom)
     size = headersize + numsize
     for _ in 1:GI.ngeom(T, geom)
-        size += typesize(wkbsubtype(T), geom[size+1:end], GI.ncoord(geom))
+        size += typesize(wkbsubtype(T), GFT.WellKnownBinary(GFT.Geom(), view(geom.val, size+1:lastindex(geom))), GI.ncoord(T, geom))
     end
     return size
 end
 function typesize(T::GI.AbstractGeometryTrait, geom, n::Integer)
     size = headersize + numsize
     for _ in 1:GI.ngeom(T, geom)
-        size += typesize(wkbsubtype(T), geom[size+1:end], n)
+        size += typesize(wkbsubtype(T), GFT.WellKnownBinary(GFT.Geom(), view(geom.val, size+1:lastindex(geom))), n)
     end
     return size
 end
 function typesize(T::GI.GeometryCollectionTrait, geom, n::Integer)
     size = headersize + numsize
     for _ in 1:GI.ngeom(T, geom)
-        size += typesize(GI.geomtrait(geom[size+1:end]), geom[size+1:end], n)
+        tgeom = GFT.WellKnownBinary(GFT.Geom(), view(geom.val, size+1:lastindex(geom)))
+        size += typesize(GI.geomtrait(tgeom), tgeom, n)
     end
     return size
 end
