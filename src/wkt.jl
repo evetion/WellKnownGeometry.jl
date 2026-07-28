@@ -156,7 +156,12 @@ function wktcoords(geom::WKTtype)
     return parse.(Float64, split(s; keepempty=false))
 end
 
-GI.getcoord(::GI.PointTrait, geom::WKTtype, i) = wktcoords(geom)[i]
+function GI.getcoord(::GI.PointTrait, geom::WKTtype, i)
+    start = findfirst('(', geom.val)
+    isnothing(start) && (start = 0)
+    s = geom.val[start+1:end-1]
+    return parse(Float64, split(s; keepempty=false)[i])
+end
 GI.getcoord(::GI.PointTrait, geom::WKTtype) = wktcoords(geom)
 GI.coordinates(::GI.PointTrait, geom::WKTtype) = wktcoords(geom)
 

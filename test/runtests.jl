@@ -258,7 +258,9 @@ import LibGEOS
             geometries = GI.getgeom(GI.geomtrait(multipoint), multipoint)
             @test geometries isa WKG.WKBGeometries
             @test geometries.ncoord == ncoord
-            @test GI.coordinates.(collect(geometries)) == coordinates
+            children = collect(geometries)
+            @test GI.coordinates.(children) == coordinates
+            @test GFT.val(children[1]) == GFT.val(WKG.getwkb(coordinates[1]))
 
             multipoint = WKG.getwkt(GI.MultiPoint(coordinates))
             geometries = GI.getgeom(GI.geomtrait(multipoint), multipoint)
@@ -266,6 +268,13 @@ import LibGEOS
             @test geometries.ncoord == ncoord
             @test GI.coordinates.(collect(geometries)) == coordinates
         end
+    end
+
+    @testset "WKT indexed coordinate access" begin
+        point = WKG.wkt"POINT (1.1 2.2 3.3)"
+        GI.getcoord(GI.PointTrait(), point, 1)  # warmup
+        @test GI.getcoord(GI.PointTrait(), point, 1) == 1.1
+        @test (@allocated GI.getcoord(GI.PointTrait(), point, 1)) < 192
     end
 
     @testset "Allocation" begin
@@ -280,5 +289,18 @@ import LibGEOS
             b = @allocated WKG.getwkb(mp)
             @test a == b
         end
+
+        mp = mpoly(100)
+        WKG.getwkt(mp)  # warmup
+        @test (@allocated WKG.getwkt(mp)) < 100_000_000
+
+        mp = GI.MultiPolygon([GI.Polygon([ring(100)]) for _ in 1:100])
+        wkt = WKG.getwkt(mp)
+        GI.coordinates(wkt)  # warmup
+        @test (@allocated GI.coordinates(wkt)) < 7_000_000
+
+        wkb = WKG.getwkb(mp)
+        GI.coordinates(wkb)  # warmup
+        @test (@allocated GI.coordinates(wkb)) < 1_500_000
     end
 end

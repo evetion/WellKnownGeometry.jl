@@ -304,8 +304,10 @@ function Base.iterate(iter::WKBGeometries, state::Tuple{Int,Int})
     offset, remaining = state
     remaining == 0 && return nothing
 
-    child = GFT.WellKnownBinary(gftgeom, @view iter.geom.val[offset:lastindex(iter.geom.val)])
-    return child, (offset + wkbchildsize(iter, child), remaining - 1)
+    data = @view iter.geom.val[offset:lastindex(iter.geom.val)]
+    child = GFT.WellKnownBinary(gftgeom, data)
+    size = wkbchildsize(iter, child)
+    return GFT.WellKnownBinary(gftgeom, @view data[1:size]), (offset + size, remaining - 1)
 end
 
 GI.getgeom(T::GI.AbstractGeometryCollectionTrait, geom::WKBtype) =
