@@ -257,6 +257,7 @@ import LibGEOS
         ring(n) = GI.LinearRing([(Float64(i), Float64(i)) for i in 1:n])
         mpoly(k) = GI.MultiPolygon([GI.Polygon([ring(100_000 ÷ k)]) for _ in 1:k])  # 100k vertices total
 
+        WKG.getwkb(mpoly(1))  # warmup
         for k in (1, 25, 50, 100)
             mp = mpoly(k)
             a = @allocated WKG.getwkb(mp)
