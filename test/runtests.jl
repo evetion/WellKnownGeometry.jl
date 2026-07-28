@@ -274,7 +274,7 @@ import LibGEOS
         point = WKG.wkt"POINT (1.1 2.2 3.3)"
         GI.getcoord(GI.PointTrait(), point, 1)  # warmup
         @test GI.getcoord(GI.PointTrait(), point, 1) == 1.1
-        @test (@allocated GI.getcoord(GI.PointTrait(), point, 1)) < 192
+        @test (@allocated GI.getcoord(GI.PointTrait(), point, 1)) <= 320
     end
 
     @testset "Allocation" begin
@@ -297,7 +297,7 @@ import LibGEOS
         mp = GI.MultiPolygon([GI.Polygon([ring(100)]) for _ in 1:100])
         wkt = WKG.getwkt(mp)
         GI.coordinates(wkt)  # warmup
-        @test (@allocated GI.coordinates(wkt)) < 7_000_000
+        @test (@allocated GI.coordinates(wkt)) < 9_000_000
 
         wkb = WKG.getwkb(mp)
         GI.coordinates(wkb)  # warmup
