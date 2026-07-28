@@ -73,7 +73,7 @@ function getwkb!(data::Vector{UInt8}, type::GI.PointTrait, geom, first::Bool)
         append_uint8!(data, wkbtype)
     end
     for i in 1:ncoord
-        append_uint8!(data, Float64(GI.getcoord(geom, i)))
+        append_uint8!(data, Float64(GI.getcoord(type, geom, i)))
     end
 end
 
@@ -86,9 +86,9 @@ function append_uint8!(data::Vector{UInt8}, value::UInt32)
 end
 function append_uint8!(data::Vector{UInt8}, value::UInt32, offset::Int)
     data[offset] = value >> 0 & 0xff
-    data[offset + 1] = value >> 8 & 0xff
-    data[offset + 2] = value >> 16 & 0xff
-    data[offset + 3] = value >> 24 & 0xff
+    data[offset+1] = value >> 8 & 0xff
+    data[offset+2] = value >> 16 & 0xff
+    data[offset+3] = value >> 24 & 0xff
 end
 function append_uint8!(data::Vector{UInt8}, value::UInt64)
     push!(data, value >> 0 & 0xff)
@@ -122,9 +122,9 @@ function _getwkb!(data::Vector{UInt8}, type, geom, first::Bool, repeat::Bool)
     n = GI.ngeom(type, geom)
     append_uint8!(data, UInt32(n))
     for i in 1:n
-        sgeom = GI.getgeom(geom, i)
-        type = GI.geomtrait(sgeom)
-        getwkb!(data, type, sgeom, repeat)
+        sgeom = GI.getgeom(type, geom, i)
+        subtype = GI.geomtrait(sgeom)
+        getwkb!(data, subtype, sgeom, repeat)
     end
 end
 
@@ -144,8 +144,10 @@ struct Point end
 struct Ring end
 
 wrap(data::Vector{UInt8}) = GFT.WellKnownBinary(GFT.Geom(), data)
-wrap(data::Base.CodeUnits{UInt8, String}) = GFT.WellKnownBinary(GFT.Geom(), data)
-macro wkb_str(wkb) GFT.WellKnownBinary(GFT.Geom(), hex2bytes(wkb)) end
+wrap(data::Base.CodeUnits{UInt8,String}) = GFT.WellKnownBinary(GFT.Geom(), data)
+macro wkb_str(wkb)
+    GFT.WellKnownBinary(GFT.Geom(), hex2bytes(wkb))
+end
 
 function check_endianness(data)
     first(data) == 0x01 || error("They are big and I am little... And that's not fair. We don't (yet) support big-endian WKB.")
@@ -201,8 +203,43 @@ end
 
 function GI.getcoord(T::GI.PointTrait, geom::WKBtype)
     offset = 1
-    data = @view geom.val[headersize+offset:headersize+offset+sizeof(Float64)*GI.ncoord(T, geom)-1]
+    data = @view geom.val[(headersize+offset):(headersize+offset+sizeof(Float64)*GI.ncoord(T, geom)-1)]
     reinterpret(Float64, data)
+end
+
+function wkblinecoordinates(data::AbstractVector{UInt8}, offset::Int, ncoord::Int)
+    npoint = Int(read_uint32(data, offset))
+    offset += numsize
+    coordinates = Vector{Vector{Float64}}(undef, npoint)
+    for i in 1:npoint
+        point = Vector{Float64}(undef, ncoord)
+        for j in 1:ncoord
+            point[j] = read_float64(data, offset)
+            offset += sizeof(Float64)
+        end
+        coordinates[i] = point
+    end
+    return coordinates, offset
+end
+
+function GI.coordinates(T::GI.AbstractLineStringTrait, geom::WKBtype)
+    coordinates, _ = wkblinecoordinates(
+        geom.val,
+        headersize + 1,
+        GI.ncoord(T, geom),
+    )
+    return coordinates
+end
+
+function GI.coordinates(T::GI.PolygonTrait, geom::WKBtype)
+    ncoord = GI.ncoord(T, geom)
+    nrings = Int(GI.ngeom(T, geom))
+    coordinates = Vector{Vector{Vector{Float64}}}(undef, nrings)
+    offset = headersize + numsize + 1
+    for i in 1:nrings
+        coordinates[i], offset = wkblinecoordinates(geom.val, offset, ncoord)
+    end
+    return coordinates
 end
 
 GI.ngeom(::Point, geom::WKBtype) = 0
@@ -223,12 +260,56 @@ function GI.getgeom(
     size = headersize + numsize
     offset = 0  # size of geom at i
     for _ in 1:i
-        tgeom = GFT.WellKnownBinary(GFT.Geom(), view(geom.val, size+1:lastindex(geom.val)))
+        tgeom = GFT.WellKnownBinary(GFT.Geom(), view(geom.val, (size+1):lastindex(geom.val)))
         offset = typesize(GI.geomtrait(tgeom), tgeom, GI.ncoord(T, geom))
         size += offset
     end
-    return geom[size-offset+1:size]
+    return GFT.WellKnownBinary(gftgeom, @view geom.val[(size-offset+1):size])
 end
+
+struct WKBGeometries{T,G}
+    type::T
+    geom::G
+    ncoord::Int
+end
+
+Base.IteratorSize(::Type{<:WKBGeometries}) = Base.SizeUnknown()
+
+function wkbchildtrait(::GI.GeometryCollectionTrait, geom::WKBtype)
+    return GI.geomtrait(geom)
+end
+
+function wkbchildtrait(T::GI.AbstractGeometryCollectionTrait, ::WKBtype)
+    return wkbsubtype(T)
+end
+
+function wkbchildsize(iter::WKBGeometries, child::WKBtype)
+    return typesize(wkbchildtrait(iter.type, child), child, iter.ncoord)
+end
+
+function wkbchildsize(
+    iter::WKBGeometries{T},
+    child::WKBtype,
+) where {T<:GI.GeometryCollectionTrait}
+    return typesize(wkbchildtrait(iter.type, child), child)
+end
+
+function Base.iterate(iter::WKBGeometries)
+    n = Int(GI.ngeom(iter.type, iter.geom))
+    n == 0 && return nothing
+    return iterate(iter, (headersize + numsize + 1, n))
+end
+
+function Base.iterate(iter::WKBGeometries, state::Tuple{Int,Int})
+    offset, remaining = state
+    remaining == 0 && return nothing
+
+    child = GFT.WellKnownBinary(gftgeom, @view iter.geom.val[offset:lastindex(iter.geom.val)])
+    return child, (offset + wkbchildsize(iter, child), remaining - 1)
+end
+
+GI.getgeom(T::GI.AbstractGeometryCollectionTrait, geom::WKBtype) =
+    WKBGeometries(T, geom, Int(GI.ncoord(T, geom)))
 
 # LineStrings do have multiple points without their endianess and type prefix set
 function GI.getgeom(
@@ -269,7 +350,7 @@ function GI.getgeom(
     offset = 0  # size of geom at i
     ncoord = GI.ncoord(T, geom)
     for _ in 1:i
-        offset = typesize(wkbsubtype(T), GFT.WellKnownBinary(GFT.Geom(), view(geom.val, size+1:lastindex(geom.val))), ncoord)
+        offset = typesize(wkbsubtype(T), GFT.WellKnownBinary(GFT.Geom(), view(geom.val, (size+1):lastindex(geom.val))), ncoord)
         size += offset
     end
     wkbtype = geometry_code(GI.LineStringTrait())
@@ -305,21 +386,21 @@ typesize(T::GI.LineStringTrait, geom, n::Integer) = headersize + numsize + GI.ng
 function typesize(T::GI.AbstractGeometryTrait, geom)
     size = headersize + numsize
     for _ in 1:GI.ngeom(T, geom)
-        size += typesize(wkbsubtype(T), GFT.WellKnownBinary(GFT.Geom(), view(geom.val, size+1:lastindex(geom))), GI.ncoord(T, geom))
+        size += typesize(wkbsubtype(T), GFT.WellKnownBinary(GFT.Geom(), view(geom.val, (size+1):lastindex(geom))), GI.ncoord(T, geom))
     end
     return size
 end
 function typesize(T::GI.AbstractGeometryTrait, geom, n::Integer)
     size = headersize + numsize
     for _ in 1:GI.ngeom(T, geom)
-        size += typesize(wkbsubtype(T), GFT.WellKnownBinary(GFT.Geom(), view(geom.val, size+1:lastindex(geom))), n)
+        size += typesize(wkbsubtype(T), GFT.WellKnownBinary(GFT.Geom(), view(geom.val, (size+1):lastindex(geom))), n)
     end
     return size
 end
 function typesize(T::GI.GeometryCollectionTrait, geom, n::Integer)
     size = headersize + numsize
     for _ in 1:GI.ngeom(T, geom)
-        tgeom = GFT.WellKnownBinary(GFT.Geom(), view(geom.val, size+1:lastindex(geom)))
+        tgeom = GFT.WellKnownBinary(GFT.Geom(), view(geom.val, (size+1):lastindex(geom)))
         size += typesize(GI.geomtrait(tgeom), tgeom, n)
     end
     return size
@@ -328,6 +409,6 @@ end
 GI.asbinary(::GI.AbstractGeometryTrait, geom) = WellKnownGeometry.getwkb(geom)
 
 # coordtype implementation - WellKnownGeometry always uses Float64
-if :coordtype in names(GI; all = true)
+if :coordtype in names(GI; all=true)
     GI.coordtype(::GI.AbstractGeometryTrait, geom::WKBtype) = Float64
 end

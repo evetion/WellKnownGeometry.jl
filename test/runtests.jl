@@ -88,7 +88,6 @@ import LibGEOS
                 @test GFT.val(wkt) == wktc
                 collection = ArchGDAL.fromWKT(GFT.val(wkt))
                 @test all(GI.coordinates(wkt) .== GI.coordinates(collection))
-
             end
         end
     end
@@ -251,6 +250,22 @@ import LibGEOS
         wkbb = WKG.wrap(b"\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3e\x40\x00\x00\x00\x00\x00\x00\x24\x40")
         wkbc = WKG.wkb"01010000000000000000003e400000000000002440"
         @test wkba == wkbb == wkbc
+    end
+
+    @testset "Sequential collection access" begin
+        for (ncoord, coordinates) in ((2, [coord, lcoord]), (3, [coord3, lcoord3]))
+            multipoint = WKG.getwkb(GI.MultiPoint(coordinates))
+            geometries = GI.getgeom(GI.geomtrait(multipoint), multipoint)
+            @test geometries isa WKG.WKBGeometries
+            @test geometries.ncoord == ncoord
+            @test GI.coordinates.(collect(geometries)) == coordinates
+
+            multipoint = WKG.getwkt(GI.MultiPoint(coordinates))
+            geometries = GI.getgeom(GI.geomtrait(multipoint), multipoint)
+            @test geometries isa WKG.WKTGeometries
+            @test geometries.ncoord == ncoord
+            @test GI.coordinates.(collect(geometries)) == coordinates
+        end
     end
 
     @testset "Allocation" begin
