@@ -88,7 +88,6 @@ import LibGEOS
                 @test GFT.val(wkt) == wktc
                 collection = ArchGDAL.fromWKT(GFT.val(wkt))
                 @test all(GI.coordinates(wkt) .== GI.coordinates(collection))
-
             end
         end
     end
@@ -253,6 +252,31 @@ import LibGEOS
         @test wkba == wkbb == wkbc
     end
 
+    @testset "Sequential collection access" begin
+        for (ncoord, coordinates) in ((2, [coord, lcoord]), (3, [coord3, lcoord3]))
+            multipoint = WKG.getwkb(GI.MultiPoint(coordinates))
+            geometries = GI.getgeom(GI.geomtrait(multipoint), multipoint)
+            @test geometries isa WKG.WKBGeometries
+            @test geometries.ncoord == ncoord
+            children = collect(geometries)
+            @test GI.coordinates.(children) == coordinates
+            @test GFT.val(children[1]) == GFT.val(WKG.getwkb(coordinates[1]))
+
+            multipoint = WKG.getwkt(GI.MultiPoint(coordinates))
+            geometries = GI.getgeom(GI.geomtrait(multipoint), multipoint)
+            @test geometries isa WKG.WKTGeometries
+            @test geometries.ncoord == ncoord
+            @test GI.coordinates.(collect(geometries)) == coordinates
+        end
+    end
+
+    @testset "WKT indexed coordinate access" begin
+        point = WKG.wkt"POINT (1.1 2.2 3.3)"
+        GI.getcoord(GI.PointTrait(), point, 1)  # warmup
+        @test GI.getcoord(GI.PointTrait(), point, 1) == 1.1
+        @test (@allocated GI.getcoord(GI.PointTrait(), point, 1)) <= 320
+    end
+
     @testset "Allocation" begin
         ring(n) = GI.LinearRing([(Float64(i), Float64(i)) for i in 1:n])
         mpoly(k) = GI.MultiPolygon([GI.Polygon([ring(100_000 ÷ k)]) for _ in 1:k])  # 100k vertices total
@@ -265,5 +289,18 @@ import LibGEOS
             b = @allocated WKG.getwkb(mp)
             @test a == b
         end
+
+        mp = mpoly(100)
+        WKG.getwkt(mp)  # warmup
+        @test (@allocated WKG.getwkt(mp)) < 100_000_000
+
+        mp = GI.MultiPolygon([GI.Polygon([ring(100)]) for _ in 1:100])
+        wkt = WKG.getwkt(mp)
+        GI.coordinates(wkt)  # warmup
+        @test (@allocated GI.coordinates(wkt)) < 9_000_000
+
+        wkb = WKG.getwkb(mp)
+        GI.coordinates(wkb)  # warmup
+        @test (@allocated GI.coordinates(wkb)) < 1_500_000
     end
 end
