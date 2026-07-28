@@ -65,7 +65,7 @@ Push WKB to `data` for a Pointlike `type` of `geom`.
 function getwkb!(data::Vector{UInt8}, type::GI.PointTrait, geom, first::Bool)
     ncoord = GI.ncoord(type, geom)
     if first
-        sizehint!(data, 21)
+        isempty(data) && sizehint!(data, 21)
         push!(data, 0x01)  # endianness
         wkbtype = geometry_code(type)
         ncoord == 3 && (wkbtype |= wkbZ)
@@ -110,7 +110,7 @@ a geometrycollection.
 """
 function _getwkb!(data::Vector{UInt8}, type, geom, first::Bool, repeat::Bool)
     if first
-        sizehint!(data, 42)  # smallest non-point geometry is a line with 2 points
+        isempty(data) && sizehint!(data, 42)  # smallest non-point geometry is a line with 2 points
         push!(data, 0x01)  # endianness
         wkbtype = geometry_code(type)
         ncoord = GI.ncoord(type, geom)

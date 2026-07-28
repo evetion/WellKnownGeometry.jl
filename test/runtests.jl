@@ -252,4 +252,18 @@ import LibGEOS
         wkbc = WKG.wkb"01010000000000000000003e400000000000002440"
         @test wkba == wkbb == wkbc
     end
+
+    @testset "Allocation" begin
+        ring(n) = GI.LinearRing([(Float64(i), Float64(i)) for i in 1:n])
+        mpoly(k) = GI.MultiPolygon([GI.Polygon([ring(100_000 ÷ k)]) for _ in 1:k])  # 100k vertices total
+
+        mp = mpoly(1)
+        WKG.getwkb(mp)  # warmup
+        a = @allocated WKG.getwkb(mp)
+        for k in (1, 25, 50, 100)
+            mp = mpoly(k)
+            b = @allocated WKG.getwkb(mp)
+            @test a == b
+        end
+    end
 end
