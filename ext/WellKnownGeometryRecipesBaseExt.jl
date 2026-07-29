@@ -1,0 +1,11 @@
+module WellKnownGeometryRecipesBaseExt
+
+import GeoInterface
+import WellKnownGeometry
+import RecipesBase
+import GeoFormatTypes
+
+GeoInterface.@enable_plots RecipesBase GeoFormatTypes.WellKnownText
+GeoInterface.@enable_plots RecipesBase GeoFormatTypes.WellKnownBinary
+
+end
