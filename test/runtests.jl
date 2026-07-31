@@ -292,7 +292,7 @@ import LibGEOS
 
         mp = mpoly(100)
         WKG.getwkt(mp)  # warmup
-        @test (@allocated WKG.getwkt(mp)) < 100_000_000
+        @test (@allocated WKG.getwkt(mp)) < 10_000_000
 
         mp = GI.MultiPolygon([GI.Polygon([ring(100)]) for _ in 1:100])
         wkt = WKG.getwkt(mp)
