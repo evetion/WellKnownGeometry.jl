@@ -54,6 +54,15 @@ function getwkt(geom)
     return GFT.WellKnownText(GFT.Geom(), String(take!(io)))
 end
 
+function write_coordinate(io::IOBuffer, value::Union{Float16,Float32,Float64})
+    Base.ensureroom(io, 24)
+    io.ptr = Base.Ryu.writeshortest(io.data, io.ptr, value)
+    io.size = max(io.size, io.ptr - 1)
+    return nothing
+end
+
+write_coordinate(io::IO, value) = print(io, value)
+
 """
 Write WKT to `io` for a Pointlike `type` of `geom`.
 
@@ -70,7 +79,7 @@ function getwkt!(io::IO, type::GI.AbstractPointTrait, geom, first::Bool)
         n = GI.ncoord(type, geom)
         first && print(io, '(')
         for i in 1:n
-            print(io, GI.getcoord(type, geom, i))
+            write_coordinate(io, GI.getcoord(type, geom, i))
             i != n && print(io, ' ')  # Don't add a ` ` on the last item
         end
         first && print(io, ')')
