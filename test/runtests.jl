@@ -290,9 +290,11 @@ import LibGEOS
 
         mp = mpoly(1)
         WKG.getwkb(mp)  # warmup
+        GC.gc()  # on Julia 1.13 the bytes counted for large allocations depend on the heap state
         a = @allocated WKG.getwkb(mp)
         for k in (1, 25, 50, 100)
             mp = mpoly(k)
+            GC.gc()
             b = @allocated WKG.getwkb(mp)
             @test a == b
         end
