@@ -92,6 +92,25 @@ import LibGEOS
         end
     end
 
+    @testset "isempty" begin
+        # GDAL and GEOS write POINT EMPTY as a point with NaN coordinates
+        @test GI.isempty(WKG.wkb"0101000000000000000000F87F000000000000F87F")
+        @test GI.isempty(WKG.wkb"01E9030000000000000000F87F000000000000F87F000000000000F87F")
+        @test !GI.isempty(WKG.getwkb(GI.Point(1.0, 2.0)))
+        @test !GI.isempty(WKG.getwkb(GI.Point(NaN, 2.0)))
+        @test GI.isempty(WKG.wkb"010200000000000000")  # LINESTRING EMPTY
+        @test !GI.isempty(WKG.wkb"0104000000010000000101000000000000000000F87F000000000000F87F")  # MULTIPOINT (EMPTY)
+        @test GFT.val(WKG.getwkt(WKG.wkb"0101000000000000000000F87F000000000000F87F")) == "POINT EMPTY"
+
+        @test GI.isempty(WKG.wkt"POINT EMPTY")
+        @test GI.isempty(WKG.wkt"POINT Z EMPTY")
+        @test GI.isempty(WKG.wkt"POINT (NaN NaN)")
+        @test !GI.isempty(WKG.wkt"POINT (1 2)")
+        @test GI.isempty(WKG.wkt"LINESTRING EMPTY")
+        @test !GI.isempty(WKG.wkt"LINESTRING (1 2, 3 4)")
+        @test !GI.isempty(WKG.wkt"GEOMETRYCOLLECTION (POINT EMPTY)")
+    end
+
     @testset "Nested GeometryCollection" begin
         inner = GI.GeometryCollection([GI.Point(1.0, 2.0), GI.LineString([(1.0, 2.0), (3.0, 4.0)])])
         collection = GI.GeometryCollection([inner, GI.Point(5.0, 6.0)])

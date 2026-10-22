@@ -176,6 +176,10 @@ GI.coordinates(::GI.PointTrait, geom::WKTtype) = wktcoords(geom)
 
 GI.ngeom(::Point, geom::WKTtype) = 0
 GI.ngeom(::GI.PointTrait, geom::WKTtype) = 0
+
+GI.isempty(::GI.AbstractGeometryTrait, geom::WKTtype) = endswith(rstrip(geom.val), "EMPTY")
+GI.isempty(T::GI.PointTrait, geom::WKTtype) = endswith(rstrip(geom.val), "EMPTY") || all(isnan, wktcoords(geom))
+
 function GI.ngeom(::GI.AbstractGeometryTrait, geom::WKTtype)
     s = geom.val
     occursin("EMPTY", s) && return 0
