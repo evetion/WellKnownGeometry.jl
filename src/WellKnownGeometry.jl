@@ -2,6 +2,7 @@ module WellKnownGeometry
 
 import GeoInterface as GI
 import GeoFormatTypes as GFT
+using PrecompileTools: @setup_workload, @compile_workload
 
 const gftgeom = GFT.Geom()
 const GeometryTraits = Union{
@@ -18,6 +19,7 @@ const GeometryTraits = Union{
 include("compat.jl")
 include("wkb.jl")
 include("wkt.jl")
+include("precompile.jl")
 
 export getwkb, getwkt
 export @wkt_str, @wkb_str, wrap
