@@ -399,7 +399,7 @@ function typesize(T::GI.AbstractGeometryTrait, geom, n::Integer)
     end
     return size
 end
-function typesize(T::GI.GeometryCollectionTrait, geom, n::Integer)
+function typesize(T::GI.GeometryCollectionTrait, geom, n::Integer=GI.ncoord(T, geom))
     size = headersize + numsize
     for _ in 1:GI.ngeom(T, geom)
         tgeom = GFT.WellKnownBinary(GFT.Geom(), view(geom.val, (size+1):lastindex(geom)))

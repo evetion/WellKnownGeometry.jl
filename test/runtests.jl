@@ -92,6 +92,13 @@ import LibGEOS
         end
     end
 
+    @testset "Nested GeometryCollection" begin
+        inner = GI.GeometryCollection([GI.Point(1.0, 2.0), GI.LineString([(1.0, 2.0), (3.0, 4.0)])])
+        collection = GI.GeometryCollection([inner, GI.Point(5.0, 6.0)])
+        @test GI.coordinates(WKG.getwkb(collection)) == GI.coordinates(collection)
+        @test GI.coordinates(WKG.getwkt(collection)) == GI.coordinates(collection)
+    end
+
     @testset "GeoInterface" begin
         wkt = GFT.WellKnownText(GFT.Geom(), "wkt")
         wkb = GFT.WellKnownBinary(GFT.Geom(), [0x0])
