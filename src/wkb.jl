@@ -247,6 +247,10 @@ GI.ngeom(::Ring, geom::WKBtype) = read_uint32(geom.val, 1)
 GI.ngeom(::GI.PointTrait, geom::WKBtype) = 0
 GI.ngeom(::GI.AbstractGeometryTrait, geom::WKBtype) = read_uint32(geom.val, headersize + 1)
 
+# GDAL and GEOS write an empty point as a point with NaN coordinates
+GI.isempty(T::GI.PointTrait, geom::WKBtype) = all(isnan, GI.getcoord(T, geom))
+GI.isempty(T::GI.AbstractGeometryTrait, geom::WKBtype) = GI.ngeom(T, geom) == 0
+
 
 # Two issues to solve, subgeometries in WKB & WKT are not "complete".
 # They forego their TYPE in WKT, or skip the endianness and type in WKB.
