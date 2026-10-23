@@ -172,6 +172,9 @@ function GI.getcoord(::GI.PointTrait, geom::WKTtype, i)
     return parse(Float64, split(s; keepempty=false)[i])
 end
 GI.getcoord(::GI.PointTrait, geom::WKTtype) = wktcoords(geom)
+# Faster than the GeoInterface fallbacks, which look up the index in `coordnames`
+GI.x(T::GI.PointTrait, geom::WKTtype) = GI.getcoord(T, geom, 1)
+GI.y(T::GI.PointTrait, geom::WKTtype) = GI.getcoord(T, geom, 2)
 GI.coordinates(::GI.PointTrait, geom::WKTtype) = wktcoords(geom)
 
 GI.ngeom(::Point, geom::WKTtype) = 0

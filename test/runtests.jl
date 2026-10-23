@@ -150,6 +150,12 @@ import LibGEOS
         wkt = GFT.WellKnownText(GFT.Geom(), "POINTZM (30 10 1 2)")
         @test GI.testgeometry(wkt)
         @test GI.coordinates(wkt) == [30.0, 10.0, 1.0, 2.0]
+        @test (GI.x(wkt), GI.y(wkt), GI.z(wkt), GI.m(wkt)) == (30.0, 10.0, 1.0, 2.0)
+
+        wkb = WKG.getwkb((30.0, 10.0, 1.0, 2.0))
+        @test (GI.x(wkb), GI.y(wkb), GI.z(wkb), GI.m(wkb)) == (30.0, 10.0, 1.0, 2.0)
+        wkb = WKG.getwkb((30.0, 10.0))
+        @test (GI.x(wkb), GI.y(wkb)) == (30.0, 10.0)
 
         wkt = GFT.WellKnownText(GFT.Geom(), "LINESTRING (30.0 10.0, 10.0 30.0, 40.0 40.0)")
         @test GI.testgeometry(wkt)
