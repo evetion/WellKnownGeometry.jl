@@ -201,6 +201,10 @@ function GI.getcoord(::GI.PointTrait, geom::WKBtype, i)
     read_float64(geom.val, offset)
 end
 
+# Faster than the GeoInterface fallbacks, which look up the index in `coordnames`
+GI.x(T::GI.PointTrait, geom::WKBtype) = GI.getcoord(T, geom, 1)
+GI.y(T::GI.PointTrait, geom::WKBtype) = GI.getcoord(T, geom, 2)
+
 function GI.getcoord(T::GI.PointTrait, geom::WKBtype)
     offset = 1
     data = @view geom.val[(headersize+offset):(headersize+offset+sizeof(Float64)*GI.ncoord(T, geom)-1)]
