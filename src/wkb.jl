@@ -34,6 +34,15 @@ const wkbM = 0x40000000
 const wkbZM = wkbZ | wkbM
 const wkbSRID = 0x20000000
 
+# EWKB Z and M flags for `geom`. Three coordinates are XYZ, unless `geom` is measured and not 3D.
+function wkbdimflags(type, geom)
+    n = GI.ncoord(type, geom)
+    n == 4 && return wkbZM
+    n == 3 && return isxym(type, geom) ? wkbM : wkbZ
+    return UInt32(0)
+end
+isxym(type, geom) = GI.ismeasured(type, geom) && !GI.is3d(type, geom)
+
 # Fast little-endian readers using bitshifting (avoids reinterpret allocations)
 @inline function read_uint32(data, offset)
     @inbounds UInt32(data[offset]) | UInt32(data[offset+1]) << 8 | UInt32(data[offset+2]) << 16 | UInt32(data[offset+3]) << 24
@@ -67,10 +76,7 @@ function getwkb!(data::Vector{UInt8}, type::GI.PointTrait, geom, first::Bool)
     if first
         isempty(data) && sizehint!(data, 21)
         push!(data, 0x01)  # endianness
-        wkbtype = geometry_code(type)
-        ncoord == 3 && (wkbtype |= wkbZ)
-        ncoord == 4 && (wkbtype |= wkbZM)
-        append_uint8!(data, wkbtype)
+        append_uint8!(data, geometry_code(type) | wkbdimflags(type, geom))
     end
     for i in 1:ncoord
         append_uint8!(data, Float64(GI.getcoord(type, geom, i)))
@@ -112,12 +118,7 @@ function _getwkb!(data::Vector{UInt8}, type, geom, first::Bool, repeat::Bool)
     if first
         isempty(data) && sizehint!(data, 42)  # smallest non-point geometry is a line with 2 points
         push!(data, 0x01)  # endianness
-        wkbtype = geometry_code(type)
-        ncoord = GI.ncoord(type, geom)
-        ncoord == 3 && (wkbtype |= wkbZ)
-        ncoord == 4 && (wkbtype |= wkbZM)
-        # append!(data, reinterpret(UInt8, [wkbtype]))
-        append_uint8!(data, wkbtype)
+        append_uint8!(data, geometry_code(type) | wkbdimflags(type, geom))
     end
     n = GI.ngeom(type, geom)
     append_uint8!(data, UInt32(n))
@@ -180,20 +181,31 @@ function GI.geomtrait(geom::WKBtype)
     end
 end
 
-function GI.ncoord(::GeometryTraits, geom::WKBtype)
+# Whether `geom` has Z and M coordinates
+function wkbdims(geom::WKBtype)
     check_endianness(geom.val)
     wkbtype = read_uint32(geom.val, 2)
-    n = 2
-
-    # ISO WKB adds thousands to wkbtype
+    # ISO WKB adds 1000 for Z, 2000 for M and 3000 for ZM, EWKB sets bit flags
     isoTypeRange = (wkbtype & 0xffff) ÷ 1000
-    n += (isoTypeRange == 1) + (isoTypeRange == 2)  # 1000 is Z, 2000 is M
-    n += (isoTypeRange == 3) * 2  # 3000 is ZM
+    hasz = isoTypeRange == 1 || isoTypeRange == 3 || (wkbtype & wkbZ) != 0
+    hasm = isoTypeRange == 2 || isoTypeRange == 3 || (wkbtype & wkbM) != 0
+    return hasz, hasm
+end
 
-    # EWKB add bit flags to wkbtype
-    n += (wkbtype & wkbZ) != 0
-    n += (wkbtype & wkbM) != 0
-    n
+function GI.ncoord(::GeometryTraits, geom::WKBtype)
+    hasz, hasm = wkbdims(geom)
+    return 2 + hasz + hasm
+end
+
+function GI.coordnames(::GeometryTraits, geom::WKBtype)
+    hasz, hasm = wkbdims(geom)
+    return hasz ? (hasm ? (:X, :Y, :Z, :M) : (:X, :Y, :Z)) : (hasm ? (:X, :Y, :M) : (:X, :Y))
+end
+
+# Faster than the generic method, for the points and rings of WKB geometries
+function wkbdimflags(::GeometryTraits, geom::WKBtype)
+    hasz, hasm = wkbdims(geom)
+    return (hasz ? wkbZ : UInt32(0)) | (hasm ? wkbM : UInt32(0))
 end
 
 function GI.getcoord(::GI.PointTrait, geom::WKBtype, i)
@@ -335,9 +347,7 @@ function GI.getgeom(
 )
     pointsize = sizeof(Float64) * ncoord  # Point size is constant for LineString
     src_offset = headersize + numsize + (i - 1) * pointsize + 1
-    wkbtype = geometry_code(GI.PointTrait())
-    ncoord == 3 && (wkbtype |= wkbZ)
-    ncoord == 4 && (wkbtype |= wkbZM)
+    wkbtype = geometry_code(GI.PointTrait()) | wkbdimflags(T, geom)
 
     data = Vector{UInt8}(undef, 1 + sizeof(UInt32) + pointsize)
     data[1] = geom.val[1]
@@ -359,9 +369,7 @@ function GI.getgeom(
         offset = typesize(wkbsubtype(T), GFT.WellKnownBinary(GFT.Geom(), view(geom.val, (size+1):lastindex(geom.val))), ncoord)
         size += offset
     end
-    wkbtype = geometry_code(GI.LineStringTrait())
-    ncoord == 3 && (wkbtype |= wkbZ)
-    ncoord == 4 && (wkbtype |= wkbZM)
+    wkbtype = geometry_code(GI.LineStringTrait()) | wkbdimflags(T, geom)
 
     data = Vector{UInt8}(undef, 1 + sizeof(UInt32) + offset)
     data[1] = geom.val[1]
