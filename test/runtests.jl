@@ -223,6 +223,26 @@ import LibGEOS
         # Make sure we can roundtrip
         wkb = WKG.getwkb(WKG.wkt"POINTZM(1 1 1 1)")
         @test GI.ncoord(wkb) == 4
+
+        # M without Z is not XYZ
+        wkt = WKG.wkt"LINESTRING M (1 2 3, 4 5 6)"
+        wkb = WKG.getwkb(wkt)
+        isowkb = GFT.WellKnownBinary(GFT.Geom(), ArchGDAL.toISOWKB(ArchGDAL.fromWKT(GFT.val(wkt))))
+        for geom in (wkt, wkb, isowkb)
+            @test GI.ncoord(geom) == 3
+            @test !GI.is3d(geom)
+            @test GI.ismeasured(geom)
+            point = GI.getpoint(geom, 2)
+            @test !GI.is3d(point)
+            @test GI.ismeasured(point)
+            @test GI.m(point) == 6.0
+        end
+        @test GFT.val(WKG.getwkt(isowkb)) == "LINESTRING M (1.0 2.0 3.0,4.0 5.0 6.0)"
+        @test ArchGDAL.ismeasured(ArchGDAL.fromWKB(GFT.val(wkb)))
+        @test !ArchGDAL.is3d(ArchGDAL.fromWKB(GFT.val(wkb)))
+        point = GI.Point{false,true}((1.0, 2.0, 3.0))
+        @test GFT.val(WKG.getwkt(point)) == "POINT M (1.0 2.0 3.0)"
+        @test GI.ismeasured(WKG.getwkb(point))
     end
 
     @testset "Number types" begin

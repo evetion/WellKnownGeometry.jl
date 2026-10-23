@@ -33,9 +33,10 @@ const geowkt = Dict{DataType,String}(
 const wktgeo = Dict{String,DataType}(zip(values(geowkt), keys(geowkt)))
 geometry_string(T) = geowkt[typeof(T)]
 function geometry_suffix(type, geom)
-    if GI.ncoord(type, geom) == 3
-        return "Z "
-    elseif GI.ncoord(type, geom) == 4
+    n = GI.ncoord(type, geom)
+    if n == 3
+        return isxym(type, geom) ? "M " : "Z "
+    elseif n == 4
         return "ZM "
     else
         return ""
@@ -143,19 +144,20 @@ function GI.geomtrait(geom::WKTtype)
     end
 end
 
-function GI.ncoord(::GeometryTraits, geom::WKTtype)
+function GI.coordnames(::GeometryTraits, geom::WKTtype)
     if occursin("EMPTY", geom.val)
-        return 0
+        return ()
     elseif occursin(r"(.| )ZM( |\()", geom.val)
-        return 4
+        return (:X, :Y, :Z, :M)
     elseif occursin(r"(.| )Z( |\()", geom.val)
-        return 3
+        return (:X, :Y, :Z)
     elseif occursin(r"(.| )M( |\()", geom.val)
-        return 3
+        return (:X, :Y, :M)
     else
-        return 2
+        return (:X, :Y)
     end
 end
+GI.ncoord(t::GeometryTraits, geom::WKTtype) = length(GI.coordnames(t, geom))
 
 
 function wktcoords(geom::WKTtype)
