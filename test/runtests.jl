@@ -247,6 +247,7 @@ import LibGEOS
 
     @testset "Number types" begin
         @test GFT.val(WKG.getwkb((1.0, 2.0))) == GFT.val(WKG.getwkb((1.0f0, 2.0f0)))
+        @test GFT.val(WKG.getwkt((1.0, 2.0))) == GFT.val(WKG.getwkt((1.0f0, 2.0f0))) == GFT.val(WKG.getwkt((Float16(1.0), Float16(2.0)))) == "POINT (1.0 2.0)"
     end
 
     @testset "Oddities" begin
