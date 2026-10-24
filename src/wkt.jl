@@ -51,18 +51,17 @@ Use `GeoFormatTypes.val` to get the String representation.
 """
 function getwkt(geom)
     io = IOBuffer()
-    getwkt!(io, GI.geomtrait(geom), geom, true)
+    getwkt!(io, GI.geomtrait(geom), geom, true, Vector{UInt8}(undef, 24))
     return GFT.WellKnownText(GFT.Geom(), String(take!(io)))
 end
 
-function write_coordinate(io::IOBuffer, value::Union{Float16,Float32,Float64})
-    Base.ensureroom(io, 24)
-    io.ptr = Base.Ryu.writeshortest(io.data, io.ptr, value)
-    io.size = max(io.size, io.ptr - 1)
+function write_coordinate(io::IO, value::Union{Float16,Float32,Float64}, buf::Vector{UInt8})
+    pos = Base.Ryu.writeshortest(buf, 1, value)
+    write(io, @view buf[1:(pos - 1)])
     return nothing
 end
 
-write_coordinate(io::IO, value) = print(io, value)
+write_coordinate(io::IO, value, _) = print(io, value)
 
 """
 Write WKT to `io` for a Pointlike `type` of `geom`.
@@ -70,7 +69,7 @@ Write WKT to `io` for a Pointlike `type` of `geom`.
 `first` indicates whether we need to print the type with brackets--like POINT ( )--
 in case this outer geometry or part of a geometrycollection.
 """
-function getwkt!(io::IO, type::GI.AbstractPointTrait, geom, first::Bool)
+function getwkt!(io::IO, type::GI.AbstractPointTrait, geom, first::Bool, buf::Vector{UInt8})
     if first
         print(io, geometry_string(type), ' ', geometry_suffix(type, geom))
     end
@@ -80,7 +79,7 @@ function getwkt!(io::IO, type::GI.AbstractPointTrait, geom, first::Bool)
         n = GI.ncoord(type, geom)
         first && print(io, '(')
         for i in 1:n
-            write_coordinate(io, GI.getcoord(type, geom, i))
+            write_coordinate(io, GI.getcoord(type, geom, i), buf)
             i != n && print(io, ' ')  # Don't add a ` ` on the last item
         end
         first && print(io, ')')
@@ -94,7 +93,7 @@ Write WKT to `io` for non Pointlike `type` of `geom`.
 in case this outer geometry. `repeat` indicates whether sub geometries need to print their type, in case `geom` is
 a geometrycollection.
 """
-function _getwkt!(io::IO, type, geom, first::Bool, repeat::Bool)
+function _getwkt!(io::IO, type, geom, first::Bool, repeat::Bool, buf::Vector{UInt8})
     if first
         print(io, geometry_string(type), ' ', geometry_suffix(type, geom))
     end
@@ -106,19 +105,19 @@ function _getwkt!(io::IO, type, geom, first::Bool, repeat::Bool)
         for i in 1:n
             sgeom = GI.getgeom(type, geom, i)
             subtype = GI.geomtrait(sgeom)
-            getwkt!(io, subtype, sgeom, repeat)
+            getwkt!(io, subtype, sgeom, repeat, buf)
             i != n && print(io, ',')  # Don't add a , on the last item
         end
         print(io, ')')
     end
 end
 
-function getwkt!(io::IO, type::GI.AbstractGeometryTrait, geom, first::Bool)
-    _getwkt!(io, type, geom, first, false)
+function getwkt!(io::IO, type::GI.AbstractGeometryTrait, geom, first::Bool, buf::Vector{UInt8})
+    _getwkt!(io, type, geom, first, false, buf)
 end
 
-function getwkt!(io::IO, type::GI.GeometryCollectionTrait, geom, first::Bool)
-    _getwkt!(io, type, geom, first, true)
+function getwkt!(io::IO, type::GI.GeometryCollectionTrait, geom, first::Bool, buf::Vector{UInt8})
+    _getwkt!(io, type, geom, first, true, buf)
 end
 
 # Implement GeoInterface for WKT, as wrapped by GeoFormatTypes
