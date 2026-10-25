@@ -57,7 +57,13 @@ end
 
 function write_coordinate(io::IOBuffer, value::Union{Float16,Float32,Float64})
     Base.ensureroom(io, 24)
-    io.ptr = Base.Ryu.writeshortest(io.data, io.ptr, value)
+    # On Julia 1.11 IOBuffer holds a Memory, but Ryu only writes to a Vector
+    data = @static if v"1.11" <= VERSION < v"1.12"
+        Base.wrap(Array, io.data)
+    else
+        io.data
+    end
+    io.ptr = Base.Ryu.writeshortest(data, io.ptr, value)
     io.size = max(io.size, io.ptr - 1)
     return nothing
 end
